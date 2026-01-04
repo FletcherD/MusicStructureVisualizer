@@ -191,6 +191,33 @@
             </div>
 
             <div class="control-group">
+                <label for="vizMode">Visualization Mode:</label>
+                <select id="vizMode">
+                    <option value="mono">Mono (Power - Viridis)</option>
+                    <option value="rgb">RGB (Frequency Bands)</option>
+                </select>
+            </div>
+
+            <div class="control-group" id="filterControlsGroup" style="display: none;">
+                <label style="display: block; margin-bottom: 10px; font-weight: bold;">Frequency Band Cutoffs:</label>
+                <div style="margin-left: 180px;">
+                    <div style="margin-bottom: 8px;">
+                        <label style="width: 120px;">Low/Mid (Hz):</label>
+                        <input type="number" id="lowMidCutoff" value="250" min="50" max="1000" step="10">
+                    </div>
+                    <div style="margin-bottom: 8px;">
+                        <label style="width: 120px;">Mid/High (Hz):</label>
+                        <input type="number" id="midHighCutoff" value="4000" min="1000" max="12000" step="100">
+                    </div>
+                    <div style="font-size: 12px; color: #888; margin-top: 5px;">
+                        Red: Low (20 - <span id="lowMidDisplay">250</span> Hz)<br>
+                        Green: Mid (<span id="lowMidDisplay2">250</span> - <span id="midHighDisplay">4000</span> Hz)<br>
+                        Blue: High (<span id="midHighDisplay2">4000</span> - 20000 Hz)
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-group">
                 <button id="processButton" disabled>Process</button>
             </div>
 
@@ -299,9 +326,11 @@
         let isProcessing = false;
 
         // Cached computation results for quick redraw
-        let cachedPowers = null;
+        let cachedPowers = null; // For mono mode: single power array
+        let cachedRGBPowers = null; // For RGB mode: {low, mid, high} arrays
         let cachedCanvasSize = 0;
         let cachedSamplesPerBeat = 0;
+        let cachedVizMode = 'mono';
 
         const canvas = document.getElementById('visualizer');
         const ctx = canvas.getContext('2d');
@@ -315,6 +344,10 @@
         const samplesPerBeatInput = document.getElementById('samplesPerBeat');
         const windowSizeInput = document.getElementById('windowSize');
         const zOrderOffsetInput = document.getElementById('zOrderOffset');
+        const vizModeInput = document.getElementById('vizMode');
+        const filterControlsGroup = document.getElementById('filterControlsGroup');
+        const lowMidCutoffInput = document.getElementById('lowMidCutoff');
+        const midHighCutoffInput = document.getElementById('midHighCutoff');
         const processButton = document.getElementById('processButton');
 
         // Initialize audio context on user interaction
@@ -345,21 +378,36 @@
 
         // Z-order offset change handler - instant redraw without recomputing
         zOrderOffsetInput.addEventListener('input', () => {
-            if (cachedPowers && !isProcessing) {
+            if ((cachedPowers || cachedRGBPowers) && !isProcessing) {
                 redrawCanvas();
             }
         });
 
+        // Visualization mode change handler
+        vizModeInput.addEventListener('change', () => {
+            const isRGB = vizModeInput.value === 'rgb';
+            filterControlsGroup.style.display = isRGB ? 'block' : 'none';
+        });
+
+        // Update filter cutoff displays
+        function updateFilterDisplays() {
+            const lowMid = lowMidCutoffInput.value;
+            const midHigh = midHighCutoffInput.value;
+            document.getElementById('lowMidDisplay').textContent = lowMid;
+            document.getElementById('lowMidDisplay2').textContent = lowMid;
+            document.getElementById('midHighDisplay').textContent = midHigh;
+            document.getElementById('midHighDisplay2').textContent = midHigh;
+        }
+
+        lowMidCutoffInput.addEventListener('input', updateFilterDisplays);
+        midHighCutoffInput.addEventListener('input', updateFilterDisplays);
+
         // Redraw canvas with current Z-order offset using cached data
         function redrawCanvas() {
-            if (!cachedPowers) return;
+            if (!cachedPowers && !cachedRGBPowers) return;
 
             const zOrderOffsetBeats = parseFloat(zOrderOffsetInput.value);
             const zOrderOffset = Math.round(zOrderOffsetBeats * cachedSamplesPerBeat);
-
-            // Use fixed colormap scale: 0 (silence) to 1 (max RMS power)
-            const minPower = 0;
-            const maxPower = 1;
 
             // Create new image data
             const imageData = ctx.createImageData(cachedCanvasSize, cachedCanvasSize);
@@ -369,23 +417,98 @@
                 imageData.data[i + 3] = 255; // Set alpha to opaque
             }
 
-            // Plot all points with new offset
-            for (let i = 0; i < cachedPowers.length; i++) {
-                const index = i + zOrderOffset;
-                const { x, y } = getZOrderCoordinates(index, cachedCanvasSize);
+            if (cachedVizMode === 'mono') {
+                // Mono mode: Use Viridis colormap with fixed scale
+                const minPower = 0;
+                const maxPower = 1;
 
-                if (x < cachedCanvasSize && y < cachedCanvasSize) {
-                    const color = powerToColor(cachedPowers[i], minPower, maxPower);
-                    const pixelIndex = (y * cachedCanvasSize + x) * 4;
-                    imageData.data[pixelIndex] = color[0];
-                    imageData.data[pixelIndex + 1] = color[1];
-                    imageData.data[pixelIndex + 2] = color[2];
-                    imageData.data[pixelIndex + 3] = color[3];
+                for (let i = 0; i < cachedPowers.length; i++) {
+                    const index = i + zOrderOffset;
+                    const { x, y } = getZOrderCoordinates(index, cachedCanvasSize);
+
+                    if (x < cachedCanvasSize && y < cachedCanvasSize) {
+                        const color = powerToColor(cachedPowers[i], minPower, maxPower);
+                        const pixelIndex = (y * cachedCanvasSize + x) * 4;
+                        imageData.data[pixelIndex] = color[0];
+                        imageData.data[pixelIndex + 1] = color[1];
+                        imageData.data[pixelIndex + 2] = color[2];
+                        imageData.data[pixelIndex + 3] = color[3];
+                    }
+                }
+            } else {
+                // RGB mode: Map frequency bands directly to RGB channels
+                for (let i = 0; i < cachedRGBPowers.low.length; i++) {
+                    const index = i + zOrderOffset;
+                    const { x, y } = getZOrderCoordinates(index, cachedCanvasSize);
+
+                    if (x < cachedCanvasSize && y < cachedCanvasSize) {
+                        const pixelIndex = (y * cachedCanvasSize + x) * 4;
+                        // Scale 0-1 power to 0-255 RGB values
+                        imageData.data[pixelIndex] = Math.floor(Math.min(1, cachedRGBPowers.low[i]) * 255);
+                        imageData.data[pixelIndex + 1] = Math.floor(Math.min(1, cachedRGBPowers.mid[i]) * 255);
+                        imageData.data[pixelIndex + 2] = Math.floor(Math.min(1, cachedRGBPowers.high[i]) * 255);
+                        imageData.data[pixelIndex + 3] = 255;
+                    }
                 }
             }
 
             // Render to canvas
             ctx.putImageData(imageData, 0, 0);
+        }
+
+        // Apply frequency filtering to separate audio into 3 bands
+        async function applyFrequencyFiltering(audioBuffer, lowMidCutoff, midHighCutoff) {
+            const sampleRate = audioBuffer.sampleRate;
+            const length = audioBuffer.length;
+
+            // Create offline context with 3 channels (one for each band)
+            const offlineCtx = new OfflineAudioContext(3, length, sampleRate);
+
+            // Create source
+            const source = offlineCtx.createBufferSource();
+            source.buffer = audioBuffer;
+
+            // Create filters for each frequency band
+            // Low band: Lowpass filter
+            const lowFilter = offlineCtx.createBiquadFilter();
+            lowFilter.type = 'lowpass';
+            lowFilter.frequency.value = lowMidCutoff;
+            lowFilter.Q.value = 0.7071; // Butterworth response
+
+            // Mid band: Bandpass filter
+            const midFilter = offlineCtx.createBiquadFilter();
+            midFilter.type = 'bandpass';
+            midFilter.frequency.value = Math.sqrt(lowMidCutoff * midHighCutoff); // Geometric mean
+            midFilter.Q.value = Math.sqrt(lowMidCutoff * midHighCutoff) / (midHighCutoff - lowMidCutoff);
+
+            // High band: Highpass filter
+            const highFilter = offlineCtx.createBiquadFilter();
+            highFilter.type = 'highpass';
+            highFilter.frequency.value = midHighCutoff;
+            highFilter.Q.value = 0.7071; // Butterworth response
+
+            // Create channel merger
+            const merger = offlineCtx.createChannelMerger(3);
+
+            // Connect: source -> filters -> merger -> destination
+            source.connect(lowFilter);
+            source.connect(midFilter);
+            source.connect(highFilter);
+            lowFilter.connect(merger, 0, 0);
+            midFilter.connect(merger, 0, 1);
+            highFilter.connect(merger, 0, 2);
+            merger.connect(offlineCtx.destination);
+
+            // Start and render
+            source.start(0);
+            const filteredBuffer = await offlineCtx.startRendering();
+
+            // Return the 3 filtered channels
+            return {
+                low: filteredBuffer.getChannelData(0),
+                mid: filteredBuffer.getChannelData(1),
+                high: filteredBuffer.getChannelData(2)
+            };
         }
 
         async function processAudio() {
@@ -401,11 +524,24 @@
             const windowSize = parseInt(windowSizeInput.value);
             const zOrderOffsetBeats = parseFloat(zOrderOffsetInput.value);
             const zOrderOffset = Math.round(zOrderOffsetBeats * samplesPerBeat);
+            const vizMode = vizModeInput.value;
 
-            // Get mono audio data
-            const audioData = audioBuffer.getChannelData(0);
             const sampleRate = audioBuffer.sampleRate;
             const duration = audioBuffer.duration;
+
+            // Apply frequency filtering if in RGB mode
+            let audioData, filteredBands;
+            if (vizMode === 'rgb') {
+                const lowMidCutoff = parseFloat(lowMidCutoffInput.value);
+                const midHighCutoff = parseFloat(midHighCutoffInput.value);
+
+                progressFill.textContent = 'Filtering...';
+                filteredBands = await applyFrequencyFiltering(audioBuffer, lowMidCutoff, midHighCutoff);
+                progressFill.textContent = '0%';
+            } else {
+                // Get mono audio data for power mode
+                audioData = audioBuffer.getChannelData(0);
+            }
 
             // Calculate window interval
             const beatsPerSecond = bpm / 60;
@@ -414,7 +550,8 @@
             const windowIntervalSamples = windowIntervalSeconds * sampleRate;
 
             // Calculate number of windows
-            const totalWindows = Math.floor(audioData.length / windowIntervalSamples);
+            const audioLength = vizMode === 'rgb' ? filteredBands.low.length : audioData.length;
+            const totalWindows = Math.floor(audioLength / windowIntervalSamples);
 
             // Calculate canvas dimensions (smallest square power of 2 that fits all windows)
             const dimension = Math.pow(2, Math.ceil(Math.log2(Math.sqrt(totalWindows))));
@@ -434,42 +571,88 @@
             ctx.fillRect(0, 0, canvasSize, canvasSize);
 
             const imageData = ctx.createImageData(canvasSize, canvasSize);
-            const powers = [];
 
-            // Use fixed colormap scale: 0 (silence) to 1 (max RMS power)
-            const minPower = 0;
-            const maxPower = 1;
+            if (vizMode === 'mono') {
+                // Mono mode: Compute single power and use Viridis colormap
+                const powers = [];
+                const minPower = 0;
+                const maxPower = 1;
 
-            // Calculate power levels and draw in real-time
-            for (let i = 0; i < totalWindows; i++) {
-                // Precise window positioning using multiplication and rounding
-                const startSample = Math.round(i * windowIntervalSamples);
-                const power = calculateRMSPower(audioData, startSample, windowSize);
-                powers.push(power);
+                for (let i = 0; i < totalWindows; i++) {
+                    const startSample = Math.round(i * windowIntervalSamples);
+                    const power = calculateRMSPower(audioData, startSample, windowSize);
+                    powers.push(power);
 
-                // Plot this point on canvas using Z-order curve
-                const index = i + zOrderOffset;
-                const { x, y } = getZOrderCoordinates(index, canvasSize);
+                    // Plot using Z-order curve with Viridis colormap
+                    const index = i + zOrderOffset;
+                    const { x, y } = getZOrderCoordinates(index, canvasSize);
 
-                if (x < canvasSize && y < canvasSize) {
-                    const color = powerToColor(power, minPower, maxPower);
-                    const pixelIndex = (y * canvasSize + x) * 4;
-                    imageData.data[pixelIndex] = color[0];
-                    imageData.data[pixelIndex + 1] = color[1];
-                    imageData.data[pixelIndex + 2] = color[2];
-                    imageData.data[pixelIndex + 3] = color[3];
+                    if (x < canvasSize && y < canvasSize) {
+                        const color = powerToColor(power, minPower, maxPower);
+                        const pixelIndex = (y * canvasSize + x) * 4;
+                        imageData.data[pixelIndex] = color[0];
+                        imageData.data[pixelIndex + 1] = color[1];
+                        imageData.data[pixelIndex + 2] = color[2];
+                        imageData.data[pixelIndex + 3] = color[3];
+                    }
+
+                    // Update canvas and progress every 100 samples
+                    if (i % 100 === 0) {
+                        ctx.putImageData(imageData, 0, 0);
+                        const progress = (i / totalWindows) * 100;
+                        progressFill.style.width = `${progress}%`;
+                        progressFill.textContent = `${Math.round(progress)}%`;
+                        await new Promise(resolve => setTimeout(resolve, 0));
+                    }
                 }
 
-                // Update canvas and progress every 100 samples
-                if (i % 100 === 0) {
-                    ctx.putImageData(imageData, 0, 0);
-                    const progress = (i / totalWindows) * 100;
-                    progressFill.style.width = `${progress}%`;
-                    progressFill.textContent = `${Math.round(progress)}%`;
+                // Cache for instant redraw
+                cachedPowers = powers;
+                cachedRGBPowers = null;
+            } else {
+                // RGB mode: Compute 3 powers and map to RGB channels
+                const lowPowers = [];
+                const midPowers = [];
+                const highPowers = [];
 
-                    // Allow UI to update
-                    await new Promise(resolve => setTimeout(resolve, 0));
+                for (let i = 0; i < totalWindows; i++) {
+                    const startSample = Math.round(i * windowIntervalSamples);
+
+                    // Compute RMS for each frequency band
+                    const lowPower = calculateRMSPower(filteredBands.low, startSample, windowSize);
+                    const midPower = calculateRMSPower(filteredBands.mid, startSample, windowSize);
+                    const highPower = calculateRMSPower(filteredBands.high, startSample, windowSize);
+
+                    lowPowers.push(lowPower);
+                    midPowers.push(midPower);
+                    highPowers.push(highPower);
+
+                    // Plot using Z-order curve with RGB mapping
+                    const index = i + zOrderOffset;
+                    const { x, y } = getZOrderCoordinates(index, canvasSize);
+
+                    if (x < canvasSize && y < canvasSize) {
+                        const pixelIndex = (y * canvasSize + x) * 4;
+                        // Map frequency bands to RGB (scale 0-1 to 0-255)
+                        imageData.data[pixelIndex] = Math.floor(Math.min(1, lowPower) * 255);
+                        imageData.data[pixelIndex + 1] = Math.floor(Math.min(1, midPower) * 255);
+                        imageData.data[pixelIndex + 2] = Math.floor(Math.min(1, highPower) * 255);
+                        imageData.data[pixelIndex + 3] = 255;
+                    }
+
+                    // Update canvas and progress every 100 samples
+                    if (i % 100 === 0) {
+                        ctx.putImageData(imageData, 0, 0);
+                        const progress = (i / totalWindows) * 100;
+                        progressFill.style.width = `${progress}%`;
+                        progressFill.textContent = `${Math.round(progress)}%`;
+                        await new Promise(resolve => setTimeout(resolve, 0));
+                    }
                 }
+
+                // Cache for instant redraw
+                cachedRGBPowers = { low: lowPowers, mid: midPowers, high: highPowers };
+                cachedPowers = null;
             }
 
             // Final render
@@ -483,9 +666,9 @@
             }, 1000);
 
             // Cache the computed data for instant redraw on offset change
-            cachedPowers = powers;
             cachedCanvasSize = canvasSize;
             cachedSamplesPerBeat = samplesPerBeat;
+            cachedVizMode = vizMode;
 
             isProcessing = false;
         }

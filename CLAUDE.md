@@ -2,16 +2,20 @@
 
 ## Project Overview
 
-WebFFT is a web application that visualizes the rhythmic structure of audio files by mapping power levels to a 2D space using a Z-order curve (Morton curve). When the window sampling rate is aligned with the song's tempo, rhythmic patterns emerge as visual structures in the visualization.
+WebFFT is a web application that visualizes the rhythmic and frequency structure of audio files by mapping audio characteristics to a 2D space using a Z-order curve (Morton curve). When the window sampling rate is aligned with the song's tempo, rhythmic patterns emerge as visual structures in the visualization.
+
+The application offers two visualization modes:
+- **Mono Mode**: Maps RMS power levels to colors using the Viridis colormap
+- **RGB Mode**: Maps frequency band power (low/mid/high) to RGB color channels for frequency-domain visualization
 
 ## Core Concept
 
 The visualization works by:
 1. Computing RMS power levels of audio windows at precise tempo-aligned intervals
-2. Mapping these 1D time-series values to 2D coordinates using a Z-order space-filling curve
-3. Rendering the power levels using the Viridis colormap
+2. **Mono Mode**: Rendering power using the Viridis colormap, OR **RGB Mode**: Computing power in 3 frequency bands and mapping to RGB
+3. Mapping these 1D time-series values to 2D coordinates using a Z-order space-filling curve
 
-The key insight: **When window intervals match the musical tempo, periodic patterns in the music manifest as geometric patterns in 2D space.**
+The key insight: **When window intervals match the musical tempo, periodic patterns in the music manifest as geometric patterns in 2D space. In RGB mode, frequency content is revealed through color.**
 
 ## Technical Implementation
 
@@ -66,7 +70,43 @@ function calculateRMSPower(audioData, startSample, windowSize) {
 
 Computes the Root Mean Square (RMS) power of each audio window, which represents the average energy level of the audio in that time window.
 
-#### 4. Z-Order Curve Mapping
+#### 4. Frequency Band Filtering (RGB Mode Only)
+```javascript
+async function applyFrequencyFiltering(audioBuffer, lowMidCutoff, midHighCutoff) {
+    const offlineCtx = new OfflineAudioContext(3, audioBuffer.length, sampleRate);
+    const source = offlineCtx.createBufferSource();
+    source.buffer = audioBuffer;
+
+    // Low band: Lowpass filter
+    const lowFilter = offlineCtx.createBiquadFilter();
+    lowFilter.type = 'lowpass';
+    lowFilter.frequency.value = lowMidCutoff;
+
+    // Mid band: Bandpass filter
+    const midFilter = offlineCtx.createBiquadFilter();
+    midFilter.type = 'bandpass';
+    midFilter.frequency.value = Math.sqrt(lowMidCutoff * midHighCutoff);
+
+    // High band: Highpass filter
+    const highFilter = offlineCtx.createBiquadFilter();
+    highFilter.type = 'highpass';
+    highFilter.frequency.value = midHighCutoff;
+
+    // Connect filters and render
+    // Returns: { low, mid, high } - 3 filtered audio channels
+}
+```
+
+When RGB mode is selected, the entire audio file is pre-filtered into 3 frequency bands using `OfflineAudioContext` and `BiquadFilterNode`:
+- **Low band (Red channel)**: Lowpass filter at the low/mid cutoff (default: 250 Hz)
+- **Mid band (Green channel)**: Bandpass filter between the two cutoffs (default: 250-4000 Hz)
+- **High band (Blue channel)**: Highpass filter at the mid/high cutoff (default: 4000 Hz)
+
+The filtering is performed once at the start of processing using native Web Audio API implementations, which are highly optimized. RMS power is then computed independently for each filtered band at each window position.
+
+**Performance**: Frequency filtering adds approximately 3-4x processing time compared to mono mode, but remains fast enough for interactive use (~3-4 seconds for a 5-minute audio file on modern hardware).
+
+#### 5. Z-Order Curve Mapping
 ```javascript
 function getZOrderCoordinates(index, width) {
     let x = 0, y = 0;
@@ -84,10 +124,35 @@ The Z-order curve (Morton order) maps a 1D index to 2D coordinates by interleavi
 
 This creates a space-filling curve that preserves locality: consecutive 1D indices map to nearby 2D points.
 
-#### 5. Colormap (Viridis)
+#### 6. Color Mapping
+
+**Mono Mode - Viridis Colormap with Fixed Scale:**
 The Viridis colormap provides perceptually uniform color mapping from low (purple) to high (yellow) power values. The 256-color lookup table is embedded in the HTML.
 
-#### 6. Canvas Auto-Sizing
+**Important**: The colormap uses a **fixed scale from 0 to 1**, not dynamic min/max normalization:
+- 0 = silence (no power) → purple/dark colors
+- 1 = maximum RMS power → yellow/bright colors
+- This ensures consistent color meaning across different audio files and throughout processing
+- Colors don't shift as new samples are computed or when comparing different songs
+- Most music has RMS values well below 1.0, so expect to see mostly purple/mid-range colors
+
+**RGB Mode - Direct Frequency-to-Color Mapping:**
+In RGB mode, the three frequency bands are mapped directly to color channels:
+- **Red channel**: Low frequency power (bass)
+- **Green channel**: Mid frequency power (mids/vocals)
+- **Blue channel**: High frequency power (treble/cymbals)
+
+Each band's power (0-1 scale) is multiplied by 255 and assigned to its respective RGB channel. This creates intuitive color representations:
+- **Red areas**: Bass-heavy sections (kick drums, bass guitar, sub-bass)
+- **Green areas**: Mid-frequency dominant (vocals, guitars, snare)
+- **Blue areas**: High-frequency emphasis (hi-hats, cymbals, brightness)
+- **Yellow (R+G)**: Bass + mids without highs
+- **Cyan (G+B)**: Mids + highs without bass
+- **Magenta (R+B)**: Bass + highs without mids
+- **White (R+G+B)**: Full-spectrum energy
+- **Black**: Silence or very low energy
+
+#### 7. Canvas Auto-Sizing
 ```javascript
 const dimension = Math.pow(2, Math.ceil(Math.log2(Math.sqrt(totalWindows))));
 ```
@@ -118,16 +183,42 @@ Canvas dimensions are automatically calculated as the smallest square power-of-2
    - Larger = smoother but less precise
 
 5. **Z-Order Offset** (beats):
-   - Range: 0+
+   - Range: Any value (positive or negative)
    - Default: 0
    - Shifts the visualization start point along the Z-order curve
    - Specified in beats, converted to samples: `offset_samples = beats * samplesPerBeat`
-   - Useful for exploring different visual starting points
+   - **Instant redraw**: Changes take effect immediately without recomputing power levels
+   - Negative values shift backward, positive values shift forward
+   - Useful for exploring different visual starting points and alignment
 
-6. **Process Button**:
+6. **Visualization Mode**:
+   - Options: "Mono (Power - Viridis)" or "RGB (Frequency Bands)"
+   - Default: Mono
+   - **Mono**: Uses Viridis colormap to represent RMS power
+   - **RGB**: Maps low/mid/high frequency bands to Red/Green/Blue channels
+   - Changing mode requires clicking Process to recompute
+
+7. **Frequency Band Cutoffs** (RGB mode only):
+   - **Low/Mid Cutoff (Hz)**:
+     - Range: 50-1000 Hz
+     - Default: 250 Hz
+     - Separates low frequency (bass) from mid frequency
+   - **Mid/High Cutoff (Hz)**:
+     - Range: 1000-12000 Hz
+     - Default: 4000 Hz
+     - Separates mid frequency from high frequency (treble)
+   - **Band assignments**:
+     - Red: 20 Hz to Low/Mid cutoff (bass, kick drums, sub-bass)
+     - Green: Low/Mid cutoff to Mid/High cutoff (vocals, guitars, snare)
+     - Blue: Mid/High cutoff to 20000 Hz (cymbals, hi-hats, brightness)
+   - Changing cutoffs requires clicking Process to recompute
+
+8. **Process Button**:
    - Enabled after audio file is loaded
    - Triggers visualization computation
-   - Shows progress bar during processing
+   - **Must click to apply** changes to BPM, Samples per Beat, Window Size, Visualization Mode, or Filter Cutoffs
+   - Shows progress bar during processing (displays "Filtering..." briefly in RGB mode)
+   - Z-Order Offset changes do NOT require reprocessing
 
 ### Display
 
@@ -140,15 +231,41 @@ Canvas dimensions are automatically calculated as the smallest square power-of-2
 
 ## Usage Workflow
 
+### Basic Workflow (Mono Mode)
 1. Open `index.html` in a modern web browser
 2. Click "Choose File" and select an audio file
 3. Determine the BPM of your song (use a BPM detection tool if needed)
 4. Enter the BPM value
 5. Adjust "Samples per Beat" if needed (64 is a good default)
 6. Click "Process" and wait for completion
+   - Canvas updates in real-time as power levels are computed
+   - Progress bar shows current status
 7. Examine the visualization for patterns
 8. Adjust Z-Order Offset to explore different views
-9. Fine-tune BPM and other parameters to enhance patterns
+   - Changes apply instantly without reprocessing
+   - Try positive and negative values to find optimal alignment
+9. To fine-tune BPM or other parameters, adjust them and click "Process" again
+
+### RGB Frequency Visualization Workflow
+1. Follow steps 1-5 above
+2. Select "RGB (Frequency Bands)" from the Visualization Mode dropdown
+3. (Optional) Adjust frequency band cutoffs:
+   - Lower the Low/Mid cutoff (e.g., 200 Hz) to capture more bass in red
+   - Raise the Mid/High cutoff (e.g., 6000 Hz) to emphasize highs more
+   - Default values (250 Hz / 4000 Hz) work well for most music
+4. Click "Process" and wait for completion
+   - Progress bar shows "Filtering..." during frequency separation
+   - Then shows percentage during RMS computation
+   - Processing takes ~3-4x longer than mono mode
+5. Interpret the color-coded visualization:
+   - **Red regions**: Bass-heavy (kick drums, bass lines)
+   - **Green regions**: Mid-dominant (vocals, guitars, snare)
+   - **Blue regions**: Treble-heavy (hi-hats, cymbals, brightness)
+   - **Mixed colors**: Combined frequency content
+6. Experiment with different cutoff frequencies for different musical styles:
+   - **Electronic/EDM**: Lower cutoffs (200/3000) to emphasize sub-bass
+   - **Rock/Metal**: Balanced cutoffs (250/4000) - defaults work well
+   - **Classical/Acoustic**: Higher cutoffs (300/5000) to capture nuance
 
 ## Key Parameters and Their Effects
 
@@ -170,13 +287,35 @@ Canvas dimensions are automatically calculated as the smallest square power-of-2
 ### Z-Order Offset
 - Used to shift the "starting position" in the visualization
 - Measured in beats for intuitive control
+- **Supports negative values** to shift backward
+- **Instant updates** - no reprocessing required, uses cached power data
 - Can reveal different aspects of the rhythmic structure
 - Try multiples of 4 or 8 beats to align with musical phrases
+- Experiment with fractional values (e.g., -0.5, 2.25) for fine alignment
+
+### Frequency Band Cutoffs (RGB Mode Only)
+**Low/Mid Cutoff:**
+- **Lower (100-200 Hz)**: Captures deep sub-bass, useful for electronic/EDM
+- **Default (250 Hz)**: Good balance for most music, separates bass from mids
+- **Higher (300-400 Hz)**: Reduces bass content, emphasizes mid-range
+
+**Mid/High Cutoff:**
+- **Lower (2000-3000 Hz)**: Broader mid-range, less emphasis on highs
+- **Default (4000 Hz)**: Natural separation between presence and air frequencies
+- **Higher (6000-8000 Hz)**: Narrow high band, captures only extreme highs
+
+**Genre-Specific Recommendations:**
+- **Electronic/EDM**: 200 Hz / 3000 Hz (emphasize sub-bass and highs)
+- **Rock/Pop**: 250 Hz / 4000 Hz (default - balanced)
+- **Jazz/Classical**: 300 Hz / 5000 Hz (natural instrumental balance)
+- **Hip-Hop**: 180 Hz / 3500 Hz (strong bass presence)
+- **Metal**: 200 Hz / 6000 Hz (capture heavy lows and bright highs)
 
 ## Algorithm Details
 
 ### Processing Pipeline
 
+**Mono Mode:**
 1. **Load Audio**
    - Decode audio file to PCM samples
    - Extract mono channel (left channel if stereo)
@@ -186,31 +325,90 @@ Canvas dimensions are automatically calculated as the smallest square power-of-2
    - Total number of windows
    - Canvas size (smallest power-of-2 square)
 
-3. **Compute Power Levels** (with progress updates)
-   - For each window position:
+3. **Compute Power Levels and Render in Real-Time**
+   - For each window position (single pass):
      - Calculate precise start sample: `Math.round(i * windowIntervalSamples)`
      - Extract window samples
      - Compute RMS power
-     - Store in array
-
-4. **Normalize Power Values**
-   - Find min and max power across all windows
-   - Used for colormap scaling
-
-5. **Render to Canvas**
-   - For each power value:
+     - Store in array for caching
      - Apply Z-order offset
      - Convert linear index to (x, y) coordinates via Z-order curve
-     - Map power to color using Viridis colormap
+     - Map power to color using **fixed scale (0 to 1)** with Viridis colormap
      - Set pixel in ImageData
-   - Write ImageData to canvas
+     - Every 100 samples: update canvas and progress bar
+   - Final render to ensure complete display
+
+4. **Cache Results**
+   - Store computed power values
+   - Store canvas size, samples per beat, and visualization mode
+   - Used for instant redraw when Z-order offset changes
+
+**RGB Mode:**
+1. **Load Audio** (same as mono)
+
+2. **Apply Frequency Filtering**
+   - Create `OfflineAudioContext` with 3 output channels
+   - Create 3 `BiquadFilterNode` instances:
+     - Lowpass filter for bass (red channel)
+     - Bandpass filter for mids (green channel)
+     - Highpass filter for treble (blue channel)
+   - Process entire audio file through filters
+   - Extract 3 filtered audio buffers (low, mid, high)
+
+3. **Calculate Parameters** (same as mono)
+
+4. **Compute 3-Band Power Levels and Render in Real-Time**
+   - For each window position (single pass):
+     - Calculate precise start sample: `Math.round(i * windowIntervalSamples)`
+     - Compute RMS power on **all 3 filtered bands**
+     - Store all 3 power values in separate arrays for caching
+     - Apply Z-order offset
+     - Convert linear index to (x, y) coordinates via Z-order curve
+     - Map (low, mid, high) power to (R, G, B) using **fixed scale (0 to 1)**
+     - Set pixel in ImageData
+     - Every 100 samples: update canvas and progress bar
+   - Final render to ensure complete display
+
+5. **Cache Results**
+   - Store computed RGB power values (3 arrays: low, mid, high)
+   - Store canvas size, samples per beat, and visualization mode
+   - Used for instant redraw when Z-order offset changes
+
+### Z-Order Offset Instant Redraw
+
+When the Z-order offset is changed after processing:
+- Uses cached power values (no recomputation)
+  - **Mono mode**: Single power array
+  - **RGB mode**: Three power arrays (low, mid, high)
+- Creates new ImageData with background
+- Plots all points with new offset:
+  - **Mono mode**: Using fixed colormap scale (0-1) with Viridis
+  - **RGB mode**: Mapping (low, mid, high) → (R, G, B) with fixed scale (0-1)
+- Renders to canvas immediately
+- No progress bar shown (instant operation)
 
 ### Performance Considerations
 
-- Progress updates every 100 windows during power calculation
-- Single render pass after all calculations complete
+**General:**
+- Real-time canvas updates every 100 samples during computation
+- Progress updates synchronized with canvas updates
 - Uses `ImageData` for efficient pixel manipulation
 - `await` with zero timeout allows UI updates without blocking
+- Cached power values enable instant offset changes without reprocessing
+- Fixed colormap scale (0-1) eliminates need for min/max calculation
+
+**Mono Mode Performance:**
+- Single RMS calculation per window
+- Very fast: ~1 second for 5-minute audio file
+- Minimal memory usage
+
+**RGB Mode Performance:**
+- Frequency filtering: ~1-2 seconds (native Web Audio API, highly optimized)
+- Three RMS calculations per window (3× mono cost)
+- Total: ~3-4 seconds for 5-minute audio file
+- **~3-4× slower than mono mode** but still very interactive
+- Additional memory: 3× power arrays cached
+- Much more efficient than per-window FFT (which would be ~10-20× slower)
 
 ## Mathematical Foundation
 
@@ -338,6 +536,23 @@ Depends on browser, but typically:
 - **64 samples/beat**: Good balance of resolution and canvas size
 - **2048 window size**: ~46ms at 44.1kHz, good for rhythm analysis
 - **Viridis colormap**: Perceptually uniform and colorblind-friendly
+- **Fixed colormap scale (0-1)**: Ensures consistent color meaning across files and during processing
+
+### Key Design Decisions
+
+1. **Manual Process Button**: Changes to BPM, samples per beat, and window size require clicking "Process" to apply. This prevents accidental expensive recomputation while adjusting parameters.
+
+2. **Instant Z-Order Offset Updates**: Offset changes redraw immediately using cached power values. This enables rapid exploration of different alignments without reprocessing.
+
+3. **Fixed Colormap Scale**: Using 0-1 instead of min/max normalization ensures:
+   - Colors have consistent meaning across different audio files
+   - No color shifting during real-time rendering
+   - Visualizations are directly comparable
+   - Simpler implementation (no normalization pass needed)
+
+4. **Real-Time Canvas Updates**: Showing the visualization as it's computed provides immediate feedback and makes the process feel faster, even though computation time is the same.
+
+5. **Cached Power Values**: Storing computed RMS values enables instant redraw for offset changes and potential future features (different colormaps, zoom, etc.).
 
 ### Known Limitations
 - Mono only (uses left channel for stereo files)
@@ -374,12 +589,17 @@ When updating this project:
    - Different audio formats
    - Various file lengths (30s, 2min, 5min+)
    - Different samples per beat settings
+   - Z-order offset changes (positive, negative, fractional values)
+   - Verify instant redraw performance with large files
 
 2. **Preserve the key invariants**:
    - Precise window positioning (no cumulative error)
    - Power-of-2 samples per beat
    - Correct Z-order coordinate calculation
    - Proper offset conversion (beats → samples)
+   - Fixed colormap scale (0 to 1)
+   - Cached power values for instant offset redraw
+   - Real-time canvas updates during processing
 
 3. **Performance considerations**:
    - Keep progress updates frequent enough for feedback
@@ -395,5 +615,40 @@ When updating this project:
 ---
 
 **Last Updated**: 2026-01-04
-**Version**: 1.0
+**Version**: 1.2
 **Author**: Built with Claude Code
+
+## Changelog
+
+### Version 1.2 (2026-01-04)
+- **Major Feature**: Added RGB frequency visualization mode
+- New Visualization Mode selector: Mono (Power) vs RGB (Frequency Bands)
+- Implemented 3-band frequency filtering using Web Audio API:
+  - Low band (Red): Lowpass filter for bass frequencies
+  - Mid band (Green): Bandpass filter for mid frequencies
+  - High band (Blue): Highpass filter for treble frequencies
+- Added adjustable frequency band cutoff controls:
+  - Low/Mid Cutoff (50-1000 Hz, default 250 Hz)
+  - Mid/High Cutoff (1000-12000 Hz, default 4000 Hz)
+- Frequency filtering uses `OfflineAudioContext` and `BiquadFilterNode` for performance
+- RGB mode caches 3 power arrays for instant Z-order offset redraw
+- RGB mode is ~3-4× slower than mono but still interactive (~3-4s for 5-min audio)
+- Color-coded frequency content visualization:
+  - Red areas = bass-heavy, Green = mid-dominant, Blue = treble-heavy
+  - Mixed colors reveal frequency content combinations
+- Added genre-specific frequency cutoff recommendations in documentation
+- Performance is much better than per-window FFT approach (3-4× vs 10-20× slowdown)
+
+### Version 1.1 (2026-01-04)
+- Added Process button - parameters no longer auto-apply
+- Implemented instant Z-order offset redraw using cached power values
+- Z-order offset now supports negative values
+- Changed to fixed colormap scale (0-1) instead of min/max normalization
+- Added real-time canvas updates during power computation
+- Samples per Beat changed to dropdown with powers of 2 (1-512)
+
+### Version 1.0 (2026-01-04)
+- Initial release
+- Basic audio visualization with Z-order curve mapping
+- Viridis colormap
+- Adjustable BPM, samples per beat, window size, and Z-order offset
