@@ -187,7 +187,7 @@
 
             <div class="control-group">
                 <label for="zOrderOffset">Z-Order Offset (beats):</label>
-                <input type="number" id="zOrderOffset" value="0" min="0" step="0.1">
+                <input type="number" id="zOrderOffset" value="0" step="0.1">
             </div>
 
             <div class="control-group">
@@ -298,6 +298,11 @@
         let audioBuffer;
         let isProcessing = false;
 
+        // Cached computation results for quick redraw
+        let cachedPowers = null;
+        let cachedCanvasSize = 0;
+        let cachedSamplesPerBeat = 0;
+
         const canvas = document.getElementById('visualizer');
         const ctx = canvas.getContext('2d');
         const progressContainer = document.getElementById('progressContainer');
@@ -337,6 +342,51 @@
                 processAudio();
             }
         });
+
+        // Z-order offset change handler - instant redraw without recomputing
+        zOrderOffsetInput.addEventListener('input', () => {
+            if (cachedPowers && !isProcessing) {
+                redrawCanvas();
+            }
+        });
+
+        // Redraw canvas with current Z-order offset using cached data
+        function redrawCanvas() {
+            if (!cachedPowers) return;
+
+            const zOrderOffsetBeats = parseFloat(zOrderOffsetInput.value);
+            const zOrderOffset = Math.round(zOrderOffsetBeats * cachedSamplesPerBeat);
+
+            // Use fixed colormap scale: 0 (silence) to 1 (max RMS power)
+            const minPower = 0;
+            const maxPower = 1;
+
+            // Create new image data
+            const imageData = ctx.createImageData(cachedCanvasSize, cachedCanvasSize);
+
+            // Clear to black
+            for (let i = 0; i < imageData.data.length; i += 4) {
+                imageData.data[i + 3] = 255; // Set alpha to opaque
+            }
+
+            // Plot all points with new offset
+            for (let i = 0; i < cachedPowers.length; i++) {
+                const index = i + zOrderOffset;
+                const { x, y } = getZOrderCoordinates(index, cachedCanvasSize);
+
+                if (x < cachedCanvasSize && y < cachedCanvasSize) {
+                    const color = powerToColor(cachedPowers[i], minPower, maxPower);
+                    const pixelIndex = (y * cachedCanvasSize + x) * 4;
+                    imageData.data[pixelIndex] = color[0];
+                    imageData.data[pixelIndex + 1] = color[1];
+                    imageData.data[pixelIndex + 2] = color[2];
+                    imageData.data[pixelIndex + 3] = color[3];
+                }
+            }
+
+            // Render to canvas
+            ctx.putImageData(imageData, 0, 0);
+        }
 
         async function processAudio() {
             if (isProcessing || !audioBuffer) return;
@@ -385,8 +435,10 @@
 
             const imageData = ctx.createImageData(canvasSize, canvasSize);
             const powers = [];
-            let minPower = Infinity;
-            let maxPower = -Infinity;
+
+            // Use fixed colormap scale: 0 (silence) to 1 (max RMS power)
+            const minPower = 0;
+            const maxPower = 1;
 
             // Calculate power levels and draw in real-time
             for (let i = 0; i < totalWindows; i++) {
@@ -394,10 +446,6 @@
                 const startSample = Math.round(i * windowIntervalSamples);
                 const power = calculateRMSPower(audioData, startSample, windowSize);
                 powers.push(power);
-
-                // Update running min/max
-                minPower = Math.min(minPower, power);
-                maxPower = Math.max(maxPower, power);
 
                 // Plot this point on canvas using Z-order curve
                 const index = i + zOrderOffset;
@@ -433,6 +481,11 @@
             setTimeout(() => {
                 progressContainer.style.display = 'none';
             }, 1000);
+
+            // Cache the computed data for instant redraw on offset change
+            cachedPowers = powers;
+            cachedCanvasSize = canvasSize;
+            cachedSamplesPerBeat = samplesPerBeat;
 
             isProcessing = false;
         }
