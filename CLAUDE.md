@@ -126,23 +126,34 @@ This creates a space-filling curve that preserves locality: consecutive 1D indic
 
 #### 6. Color Mapping
 
-**Mono Mode - Viridis Colormap with Fixed Scale:**
+**Mono Mode - Viridis Colormap with Dynamic Normalization:**
 The Viridis colormap provides perceptually uniform color mapping from low (purple) to high (yellow) power values. The 256-color lookup table is embedded in the HTML.
 
-**Important**: The colormap uses a **fixed scale from 0 to 1**, not dynamic min/max normalization:
+**Normalization Strategy:**
+- After computing all power values, the maximum power level is found
+- All power values are normalized: `normalized_power = power / max_power`
 - 0 = silence (no power) → purple/dark colors
-- 1 = maximum RMS power → yellow/bright colors
-- This ensures consistent color meaning across different audio files and throughout processing
-- Colors don't shift as new samples are computed or when comparing different songs
-- Most music has RMS values well below 1.0, so expect to see mostly purple/mid-range colors
+- 1 = maximum power in the audio file → yellow/bright colors
+- **Uses full color range** for better visual contrast and detail
+- When reprocessing, temporarily uses previous max power for real-time rendering
+- After processing completes, calculates new max power and redraws with correct normalization
+- This ensures colors always utilize the full Viridis spectrum regardless of audio loudness
 
-**RGB Mode - Direct Frequency-to-Color Mapping:**
+**RGB Mode - Direct Frequency-to-Color Mapping with Per-Band Normalization:**
 In RGB mode, the three frequency bands are mapped directly to color channels:
 - **Red channel**: Low frequency power (bass)
 - **Green channel**: Mid frequency power (mids/vocals)
 - **Blue channel**: High frequency power (treble/cymbals)
 
-Each band's power (0-1 scale) is multiplied by 255 and assigned to its respective RGB channel. This creates intuitive color representations:
+**Normalization Strategy:**
+- After computing all power values, the maximum power for **each band independently** is found
+- Each band is normalized by its own max: `normalized = power / max_power_for_band`
+- This ensures each frequency band uses its full 0-255 range
+- When reprocessing, temporarily uses previous max powers for real-time rendering
+- After processing completes, calculates new max powers and redraws with correct normalization
+- Independent normalization reveals frequency balance even in imbalanced mixes
+
+This creates intuitive color representations:
 - **Red areas**: Bass-heavy sections (kick drums, bass guitar, sub-bass)
 - **Green areas**: Mid-frequency dominant (vocals, guitars, snare)
 - **Blue areas**: High-frequency emphasis (hi-hats, cymbals, brightness)
@@ -333,13 +344,15 @@ Canvas dimensions are automatically calculated as the smallest square power-of-2
      - Store in array for caching
      - Apply Z-order offset
      - Convert linear index to (x, y) coordinates via Z-order curve
-     - Map power to color using **fixed scale (0 to 1)** with Viridis colormap
+     - Map power to color using **temporary max power** with Viridis colormap
      - Set pixel in ImageData
      - Every 100 samples: update canvas and progress bar
-   - Final render to ensure complete display
+   - Find maximum power value from all computed powers
+   - Redraw canvas with correct normalization (0 to max_power)
 
 4. **Cache Results**
    - Store computed power values
+   - Store max power level for normalization
    - Store canvas size, samples per beat, and visualization mode
    - Used for instant redraw when Z-order offset changes
 
@@ -364,38 +377,41 @@ Canvas dimensions are automatically calculated as the smallest square power-of-2
      - Store all 3 power values in separate arrays for caching
      - Apply Z-order offset
      - Convert linear index to (x, y) coordinates via Z-order curve
-     - Map (low, mid, high) power to (R, G, B) using **fixed scale (0 to 1)**
+     - Map (low, mid, high) power to (R, G, B) using **temporary max powers** for each band
      - Set pixel in ImageData
      - Every 100 samples: update canvas and progress bar
-   - Final render to ensure complete display
+   - Find maximum power value for **each band independently**
+   - Redraw canvas with correct per-band normalization
 
 5. **Cache Results**
    - Store computed RGB power values (3 arrays: low, mid, high)
+   - Store max power levels for each band (low, mid, high)
    - Store canvas size, samples per beat, and visualization mode
    - Used for instant redraw when Z-order offset changes
 
 ### Z-Order Offset Instant Redraw
 
 When the Z-order offset is changed after processing:
-- Uses cached power values (no recomputation)
-  - **Mono mode**: Single power array
-  - **RGB mode**: Three power arrays (low, mid, high)
+- Uses cached power values and max power levels (no recomputation)
+  - **Mono mode**: Single power array and max power value
+  - **RGB mode**: Three power arrays (low, mid, high) and three max power values
 - Creates new ImageData with background
-- Plots all points with new offset:
-  - **Mono mode**: Using fixed colormap scale (0-1) with Viridis
-  - **RGB mode**: Mapping (low, mid, high) → (R, G, B) with fixed scale (0-1)
+- Plots all points with new offset using normalized values:
+  - **Mono mode**: Normalize by max power, map to Viridis colormap
+  - **RGB mode**: Normalize each band by its max, map to RGB channels
 - Renders to canvas immediately
 - No progress bar shown (instant operation)
 
 ### Performance Considerations
 
 **General:**
-- Real-time canvas updates every 100 samples during computation
+- Real-time canvas updates every 100 samples during computation (using previous max values)
 - Progress updates synchronized with canvas updates
 - Uses `ImageData` for efficient pixel manipulation
 - `await` with zero timeout allows UI updates without blocking
 - Cached power values enable instant offset changes without reprocessing
-- Fixed colormap scale (0-1) eliminates need for min/max calculation
+- Max power calculation at end of processing is very fast (single pass through arrays)
+- Final redraw with correct normalization happens after max power is computed
 
 **Mono Mode Performance:**
 - Single RMS calculation per window
@@ -542,17 +558,19 @@ Depends on browser, but typically:
 
 1. **Manual Process Button**: Changes to BPM, samples per beat, and window size require clicking "Process" to apply. This prevents accidental expensive recomputation while adjusting parameters.
 
-2. **Instant Z-Order Offset Updates**: Offset changes redraw immediately using cached power values. This enables rapid exploration of different alignments without reprocessing.
+2. **Instant Z-Order Offset Updates**: Offset changes redraw immediately using cached power values and max power levels. This enables rapid exploration of different alignments without reprocessing.
 
-3. **Fixed Colormap Scale**: Using 0-1 instead of min/max normalization ensures:
-   - Colors have consistent meaning across different audio files
-   - No color shifting during real-time rendering
-   - Visualizations are directly comparable
-   - Simpler implementation (no normalization pass needed)
+3. **Dynamic Normalization with Stable Reprocessing**:
+   - Normalizes to maximum power value(s) found in the audio for full color range utilization
+   - **Mono mode**: Single max power value for all pixels
+   - **RGB mode**: Independent max power per frequency band (reveals balance even in imbalanced mixes)
+   - During reprocessing, uses previous max values for real-time rendering (prevents visualization from disappearing)
+   - After processing completes, calculates new max values and redraws for accurate representation
+   - Maximizes visual contrast and detail regardless of audio loudness
 
 4. **Real-Time Canvas Updates**: Showing the visualization as it's computed provides immediate feedback and makes the process feel faster, even though computation time is the same.
 
-5. **Cached Power Values**: Storing computed RMS values enables instant redraw for offset changes and potential future features (different colormaps, zoom, etc.).
+5. **Cached Power Values and Max Levels**: Storing computed RMS values and max power levels enables instant redraw for offset changes and maintains normalization across reprocessing.
 
 ### Known Limitations
 - Mono only (uses left channel for stereo files)
@@ -597,9 +615,10 @@ When updating this project:
    - Power-of-2 samples per beat
    - Correct Z-order coordinate calculation
    - Proper offset conversion (beats → samples)
-   - Fixed colormap scale (0 to 1)
-   - Cached power values for instant offset redraw
-   - Real-time canvas updates during processing
+   - Dynamic normalization to max power values
+   - Cached power values and max levels for instant offset redraw
+   - Real-time canvas updates during processing (using previous max values)
+   - Final redraw after processing with correct normalization
 
 3. **Performance considerations**:
    - Keep progress updates frequent enough for feedback
@@ -633,17 +652,22 @@ When updating this project:
 - Frequency filtering uses `OfflineAudioContext` and `BiquadFilterNode` for performance
 - RGB mode caches 3 power arrays for instant Z-order offset redraw
 - RGB mode is ~3-4× slower than mono but still interactive (~3-4s for 5-min audio)
+- **Dynamic Normalization**: Changed back to normalized max power values for better color utilization
+  - Mono mode: Normalizes to single max power value
+  - RGB mode: Independent normalization per frequency band (reveals balance)
+  - During reprocessing, uses previous max values temporarily (stable rendering)
+  - After processing completes, calculates new max and redraws with correct normalization
 - Color-coded frequency content visualization:
   - Red areas = bass-heavy, Green = mid-dominant, Blue = treble-heavy
   - Mixed colors reveal frequency content combinations
 - Added genre-specific frequency cutoff recommendations in documentation
 - Performance is much better than per-window FFT approach (3-4× vs 10-20× slowdown)
 
-### Version 1.1 (2026-01-04)
+### Version 1.1 (2026-01-04) [Superseded by 1.2 normalization changes]
 - Added Process button - parameters no longer auto-apply
 - Implemented instant Z-order offset redraw using cached power values
 - Z-order offset now supports negative values
-- Changed to fixed colormap scale (0-1) instead of min/max normalization
+- Changed to fixed colormap scale (0-1) instead of min/max normalization (reverted in 1.2)
 - Added real-time canvas updates during power computation
 - Samples per Beat changed to dropdown with powers of 2 (1-512)
 

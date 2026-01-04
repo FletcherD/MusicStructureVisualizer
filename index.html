@@ -332,6 +332,10 @@
         let cachedSamplesPerBeat = 0;
         let cachedVizMode = 'mono';
 
+        // Max power levels for normalization
+        let maxPowerMono = 1.0; // Max power in mono mode
+        let maxPowerRGB = { low: 1.0, mid: 1.0, high: 1.0 }; // Max power per band in RGB mode
+
         const canvas = document.getElementById('visualizer');
         const ctx = canvas.getContext('2d');
         const progressContainer = document.getElementById('progressContainer');
@@ -418,9 +422,9 @@
             }
 
             if (cachedVizMode === 'mono') {
-                // Mono mode: Use Viridis colormap with fixed scale
+                // Mono mode: Use Viridis colormap with normalized scale
                 const minPower = 0;
-                const maxPower = 1;
+                const maxPower = maxPowerMono;
 
                 for (let i = 0; i < cachedPowers.length; i++) {
                     const index = i + zOrderOffset;
@@ -436,17 +440,21 @@
                     }
                 }
             } else {
-                // RGB mode: Map frequency bands directly to RGB channels
+                // RGB mode: Map frequency bands to RGB channels with normalization
                 for (let i = 0; i < cachedRGBPowers.low.length; i++) {
                     const index = i + zOrderOffset;
                     const { x, y } = getZOrderCoordinates(index, cachedCanvasSize);
 
                     if (x < cachedCanvasSize && y < cachedCanvasSize) {
                         const pixelIndex = (y * cachedCanvasSize + x) * 4;
-                        // Scale 0-1 power to 0-255 RGB values
-                        imageData.data[pixelIndex] = Math.floor(Math.min(1, cachedRGBPowers.low[i]) * 255);
-                        imageData.data[pixelIndex + 1] = Math.floor(Math.min(1, cachedRGBPowers.mid[i]) * 255);
-                        imageData.data[pixelIndex + 2] = Math.floor(Math.min(1, cachedRGBPowers.high[i]) * 255);
+                        // Normalize each band by its max power, then scale to 0-255
+                        const normalizedLow = Math.min(1, cachedRGBPowers.low[i] / maxPowerRGB.low);
+                        const normalizedMid = Math.min(1, cachedRGBPowers.mid[i] / maxPowerRGB.mid);
+                        const normalizedHigh = Math.min(1, cachedRGBPowers.high[i] / maxPowerRGB.high);
+
+                        imageData.data[pixelIndex] = Math.floor(normalizedLow * 255);
+                        imageData.data[pixelIndex + 1] = Math.floor(normalizedMid * 255);
+                        imageData.data[pixelIndex + 2] = Math.floor(normalizedHigh * 255);
                         imageData.data[pixelIndex + 3] = 255;
                     }
                 }
@@ -575,20 +583,22 @@
             if (vizMode === 'mono') {
                 // Mono mode: Compute single power and use Viridis colormap
                 const powers = [];
+
+                // Use previous max power during processing for real-time rendering
                 const minPower = 0;
-                const maxPower = 1;
+                const tempMaxPower = maxPowerMono;
 
                 for (let i = 0; i < totalWindows; i++) {
                     const startSample = Math.round(i * windowIntervalSamples);
                     const power = calculateRMSPower(audioData, startSample, windowSize);
                     powers.push(power);
 
-                    // Plot using Z-order curve with Viridis colormap
+                    // Plot using Z-order curve with Viridis colormap (using temp max)
                     const index = i + zOrderOffset;
                     const { x, y } = getZOrderCoordinates(index, canvasSize);
 
                     if (x < canvasSize && y < canvasSize) {
-                        const color = powerToColor(power, minPower, maxPower);
+                        const color = powerToColor(power, minPower, tempMaxPower);
                         const pixelIndex = (y * canvasSize + x) * 4;
                         imageData.data[pixelIndex] = color[0];
                         imageData.data[pixelIndex + 1] = color[1];
@@ -606,14 +616,27 @@
                     }
                 }
 
-                // Cache for instant redraw
+                // Calculate actual max power from computed values
+                maxPowerMono = Math.max(...powers);
+                if (maxPowerMono === 0) maxPowerMono = 1.0; // Avoid division by zero
+
+                // Cache for instant redraw (must be set before redrawCanvas)
                 cachedPowers = powers;
                 cachedRGBPowers = null;
+                cachedCanvasSize = canvasSize;
+                cachedSamplesPerBeat = samplesPerBeat;
+                cachedVizMode = vizMode;
+
+                // Redraw with correct normalization
+                redrawCanvas();
             } else {
                 // RGB mode: Compute 3 powers and map to RGB channels
                 const lowPowers = [];
                 const midPowers = [];
                 const highPowers = [];
+
+                // Use previous max powers during processing for real-time rendering
+                const tempMaxRGB = { ...maxPowerRGB };
 
                 for (let i = 0; i < totalWindows; i++) {
                     const startSample = Math.round(i * windowIntervalSamples);
@@ -627,16 +650,20 @@
                     midPowers.push(midPower);
                     highPowers.push(highPower);
 
-                    // Plot using Z-order curve with RGB mapping
+                    // Plot using Z-order curve with RGB mapping (using temp max values)
                     const index = i + zOrderOffset;
                     const { x, y } = getZOrderCoordinates(index, canvasSize);
 
                     if (x < canvasSize && y < canvasSize) {
                         const pixelIndex = (y * canvasSize + x) * 4;
-                        // Map frequency bands to RGB (scale 0-1 to 0-255)
-                        imageData.data[pixelIndex] = Math.floor(Math.min(1, lowPower) * 255);
-                        imageData.data[pixelIndex + 1] = Math.floor(Math.min(1, midPower) * 255);
-                        imageData.data[pixelIndex + 2] = Math.floor(Math.min(1, highPower) * 255);
+                        // Normalize by temp max values, then scale to 0-255
+                        const normalizedLow = Math.min(1, lowPower / tempMaxRGB.low);
+                        const normalizedMid = Math.min(1, midPower / tempMaxRGB.mid);
+                        const normalizedHigh = Math.min(1, highPower / tempMaxRGB.high);
+
+                        imageData.data[pixelIndex] = Math.floor(normalizedLow * 255);
+                        imageData.data[pixelIndex + 1] = Math.floor(normalizedMid * 255);
+                        imageData.data[pixelIndex + 2] = Math.floor(normalizedHigh * 255);
                         imageData.data[pixelIndex + 3] = 255;
                     }
 
@@ -650,13 +677,26 @@
                     }
                 }
 
-                // Cache for instant redraw
+                // Calculate actual max power for each band
+                maxPowerRGB.low = Math.max(...lowPowers);
+                maxPowerRGB.mid = Math.max(...midPowers);
+                maxPowerRGB.high = Math.max(...highPowers);
+
+                // Avoid division by zero
+                if (maxPowerRGB.low === 0) maxPowerRGB.low = 1.0;
+                if (maxPowerRGB.mid === 0) maxPowerRGB.mid = 1.0;
+                if (maxPowerRGB.high === 0) maxPowerRGB.high = 1.0;
+
+                // Cache for instant redraw (must be set before redrawCanvas)
                 cachedRGBPowers = { low: lowPowers, mid: midPowers, high: highPowers };
                 cachedPowers = null;
-            }
+                cachedCanvasSize = canvasSize;
+                cachedSamplesPerBeat = samplesPerBeat;
+                cachedVizMode = vizMode;
 
-            // Final render
-            ctx.putImageData(imageData, 0, 0);
+                // Redraw with correct normalization
+                redrawCanvas();
+            }
 
             progressFill.style.width = '100%';
             progressFill.textContent = '100%';
@@ -664,11 +704,6 @@
             setTimeout(() => {
                 progressContainer.style.display = 'none';
             }, 1000);
-
-            // Cache the computed data for instant redraw on offset change
-            cachedCanvasSize = canvasSize;
-            cachedSamplesPerBeat = samplesPerBeat;
-            cachedVizMode = vizMode;
 
             isProcessing = false;
         }
