@@ -606,13 +606,13 @@
                         imageData.data[pixelIndex + 3] = color[3];
                     }
 
-                    // Update canvas and progress every 100 samples
-                    if (i % 100 === 0) {
+                    // Update canvas and progress every 1000 samples
+                    if (i % 1000 === 0) {
                         ctx.putImageData(imageData, 0, 0);
                         const progress = (i / totalWindows) * 100;
                         progressFill.style.width = `${progress}%`;
                         progressFill.textContent = `${Math.round(progress)}%`;
-                        await new Promise(resolve => setTimeout(resolve, 0));
+                        await new Promise(resolve => requestAnimationFrame(resolve));
                     }
                 }
 
@@ -667,13 +667,13 @@
                         imageData.data[pixelIndex + 3] = 255;
                     }
 
-                    // Update canvas and progress every 100 samples
-                    if (i % 100 === 0) {
+                    // Update canvas and progress every 1000 samples
+                    if (i % 1000 === 0) {
                         ctx.putImageData(imageData, 0, 0);
                         const progress = (i / totalWindows) * 100;
                         progressFill.style.width = `${progress}%`;
                         progressFill.textContent = `${Math.round(progress)}%`;
-                        await new Promise(resolve => setTimeout(resolve, 0));
+                        await new Promise(resolve => requestAnimationFrame(resolve));
                     }
                 }
 

@@ -346,7 +346,7 @@ Canvas dimensions are automatically calculated as the smallest square power-of-2
      - Convert linear index to (x, y) coordinates via Z-order curve
      - Map power to color using **temporary max power** with Viridis colormap
      - Set pixel in ImageData
-     - Every 100 samples: update canvas and progress bar
+     - Every 1000 samples: update canvas and progress bar using `requestAnimationFrame`
    - Find maximum power value from all computed powers
    - Redraw canvas with correct normalization (0 to max_power)
 
@@ -379,7 +379,7 @@ Canvas dimensions are automatically calculated as the smallest square power-of-2
      - Convert linear index to (x, y) coordinates via Z-order curve
      - Map (low, mid, high) power to (R, G, B) using **temporary max powers** for each band
      - Set pixel in ImageData
-     - Every 100 samples: update canvas and progress bar
+     - Every 1000 samples: update canvas and progress bar using `requestAnimationFrame`
    - Find maximum power value for **each band independently**
    - Redraw canvas with correct per-band normalization
 
@@ -405,10 +405,10 @@ When the Z-order offset is changed after processing:
 ### Performance Considerations
 
 **General:**
-- Real-time canvas updates every 100 samples during computation (using previous max values)
+- Real-time canvas updates every 1000 samples during computation using `requestAnimationFrame` (using previous max values)
 - Progress updates synchronized with canvas updates
 - Uses `ImageData` for efficient pixel manipulation
-- `await` with zero timeout allows UI updates without blocking
+- `await` with `requestAnimationFrame` syncs updates with browser rendering cycle
 - Cached power values enable instant offset changes without reprocessing
 - Max power calculation at end of processing is very fast (single pass through arrays)
 - Final redraw with correct normalization happens after max power is computed
@@ -662,6 +662,8 @@ When updating this project:
   - Mixed colors reveal frequency content combinations
 - Added genre-specific frequency cutoff recommendations in documentation
 - Performance is much better than per-window FFT approach (3-4× vs 10-20× slowdown)
+- **Performance Optimization**: Reduced canvas update frequency from every 100 to every 1000 samples (~10x fewer updates)
+- Switched from `setTimeout(0)` to `requestAnimationFrame` for better rendering sync
 
 ### Version 1.1 (2026-01-04) [Superseded by 1.2 normalization changes]
 - Added Process button - parameters no longer auto-apply
