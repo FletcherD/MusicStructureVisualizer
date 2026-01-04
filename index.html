@@ -281,6 +281,12 @@
 
         // Convert power to color using viridis colormap
         function powerToColor(power, minPower, maxPower) {
+            // Handle edge case where all powers are the same
+            if (minPower === maxPower) {
+                const [r, g, b] = viridisMap[128]; // Use middle color
+                return [r, g, b, 255];
+            }
+
             const normalized = (power - minPower) / (maxPower - minPower);
             const index = Math.floor(Math.max(0, Math.min(1, normalized)) * 255);
             const [r, g, b] = viridisMap[index];
@@ -379,16 +385,36 @@
 
             const imageData = ctx.createImageData(canvasSize, canvasSize);
             const powers = [];
+            let minPower = Infinity;
+            let maxPower = -Infinity;
 
-            // Calculate all power levels
+            // Calculate power levels and draw in real-time
             for (let i = 0; i < totalWindows; i++) {
                 // Precise window positioning using multiplication and rounding
                 const startSample = Math.round(i * windowIntervalSamples);
                 const power = calculateRMSPower(audioData, startSample, windowSize);
                 powers.push(power);
 
-                // Update progress every 100 samples
+                // Update running min/max
+                minPower = Math.min(minPower, power);
+                maxPower = Math.max(maxPower, power);
+
+                // Plot this point on canvas using Z-order curve
+                const index = i + zOrderOffset;
+                const { x, y } = getZOrderCoordinates(index, canvasSize);
+
+                if (x < canvasSize && y < canvasSize) {
+                    const color = powerToColor(power, minPower, maxPower);
+                    const pixelIndex = (y * canvasSize + x) * 4;
+                    imageData.data[pixelIndex] = color[0];
+                    imageData.data[pixelIndex + 1] = color[1];
+                    imageData.data[pixelIndex + 2] = color[2];
+                    imageData.data[pixelIndex + 3] = color[3];
+                }
+
+                // Update canvas and progress every 100 samples
                 if (i % 100 === 0) {
+                    ctx.putImageData(imageData, 0, 0);
                     const progress = (i / totalWindows) * 100;
                     progressFill.style.width = `${progress}%`;
                     progressFill.textContent = `${Math.round(progress)}%`;
@@ -398,26 +424,7 @@
                 }
             }
 
-            // Find min and max power for normalization
-            const minPower = Math.min(...powers);
-            const maxPower = Math.max(...powers);
-
-            // Plot on canvas using Z-order curve
-            for (let i = 0; i < powers.length; i++) {
-                const index = i + zOrderOffset;
-                const { x, y } = getZOrderCoordinates(index, canvasSize);
-
-                if (x < canvasSize && y < canvasSize) {
-                    const color = powerToColor(powers[i], minPower, maxPower);
-                    const pixelIndex = (y * canvasSize + x) * 4;
-                    imageData.data[pixelIndex] = color[0];
-                    imageData.data[pixelIndex + 1] = color[1];
-                    imageData.data[pixelIndex + 2] = color[2];
-                    imageData.data[pixelIndex + 3] = color[3];
-                }
-            }
-
-            // Render to canvas
+            // Final render
             ctx.putImageData(imageData, 0, 0);
 
             progressFill.style.width = '100%';
