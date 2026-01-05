@@ -39,7 +39,7 @@ WebFFT/
 │   ├── playback.ts            # Audio playback control and time tracking
 │   └── ui-controller.ts       # Main application logic and event handlers
 └── dist/                  # Build output (generated)
-    ├── app.js                 # Bundled JavaScript (14KB minified)
+    ├── app.js                 # Bundled JavaScript (131KB minified)
     └── app.js.map             # Source maps for debugging
 ```
 
@@ -68,9 +68,12 @@ npm run serve
 ```
 
 ### Build Output
-- **Minified bundle**: 14.3 KB (all code in single file)
+- **Minified bundle**: 131.3 KB (all code in single file, includes web-audio-beat-detector library)
 - **Source maps**: Included for debugging TypeScript in browser
 - **No CORS issues**: Works with file:// protocol or local server
+
+### Dependencies
+- **web-audio-beat-detector**: BPM and first beat offset detection library
 
 ### Module Responsibilities
 
@@ -257,6 +260,10 @@ The application includes synchronized audio playback with real-time visual track
 2. **BPM** (Beats Per Minute):
    - Range: 1-300, default: 120
    - **Critical parameter**: Must match the song's actual tempo for patterns to emerge
+   - **Detect BPM Button**: Automatically detects the BPM and first beat offset using the web-audio-beat-detector library
+     - Click after loading an audio file to auto-populate BPM and Z-Order Offset
+     - Shows "Detecting..." during analysis
+     - Displays detected BPM value on completion
 
 3. **Samples per Beat**:
    - Dropdown: 1, 2, 4, 8, 16, 32, 64, 128, 256, 512 (default: 64)
@@ -268,14 +275,15 @@ The application includes synchronized audio playback with real-time visual track
    - Size of audio window for RMS calculation
    - Larger = smoother but less precise
 
-5. **Z-Order Offset** (beats):
+5. **Z-Order Offset** (seconds):
    - **Number Input**: Any value (positive or negative), default: 0
-   - **Slider**: Range -4 to +4 beats with 0.01 step precision (high precision adjustment)
+   - **Slider**: Range -2 to +2 seconds with 0.001 step precision (high precision adjustment)
    - Both controls are synchronized - changing one updates the other
    - Number input can accept values outside slider range for extreme offsets
    - Shifts visualization start point along Z-order curve
    - **Instant redraw** - no reprocessing required, uses cached power data
-   - Useful for exploring different visual starting points
+   - **Auto-populated by Detect BPM**: First beat offset automatically set when using BPM detection
+   - Useful for exploring different visual starting points or aligning with song structure
 
 6. **Visualization Mode**:
    - Options: "Mono (Power - Viridis)" or "RGB (Frequency Bands)"
@@ -306,16 +314,15 @@ Appear after first successful processing:
 ### Basic Mono Mode Workflow
 1. Open `index.html` in a modern web browser
 2. Click "Choose File" and select an audio file
-3. Determine the BPM of your song (use a BPM detection tool if needed)
-4. Enter the BPM value
-5. Adjust "Samples per Beat" if needed (64 is a good default)
-6. Click "Process" and wait for completion
-7. Use playback controls to listen and see synchronized visualization
-8. Adjust Z-Order Offset to explore different views (instant update)
-9. Click on visualization to seek to specific positions
+3. Click "Detect BPM" to automatically detect tempo and first beat offset (or manually enter BPM if preferred)
+4. Adjust "Samples per Beat" if needed (64 is a good default)
+5. Click "Process" and wait for completion
+6. Use playback controls to listen and see synchronized visualization
+7. Adjust Z-Order Offset to explore different views (instant update)
+8. Click on visualization to seek to specific positions
 
 ### RGB Frequency Visualization Workflow
-1. Follow steps 1-5 above
+1. Follow steps 1-4 above (load audio, detect BPM, adjust samples per beat)
 2. Select "RGB (Frequency Bands)" from Visualization Mode dropdown
 3. (Optional) Adjust frequency band cutoffs for specific musical styles
 4. Click "Process" and wait for completion (~3-4× longer than mono mode)
@@ -342,12 +349,13 @@ Appear after first successful processing:
 - **Sweet spot**: 2048 samples at 44.1kHz ≈ 46ms window
 
 ### Z-Order Offset
-- Shifts "starting position" in visualization (measured in beats)
+- Shifts "starting position" in visualization (measured in seconds)
 - **Instant updates** - no reprocessing required
 - **Dual control system**:
   - Number input: For precise values or extreme offsets outside slider range
-  - Slider (-4 to +4 beats): For quick, smooth exploration with 0.01 precision
-- Try multiples of 4 or 8 beats to align with musical phrases
+  - Slider (-2 to +2 seconds): For quick, smooth exploration with 0.001 precision
+- **Auto-set by BPM detection**: First beat offset automatically populated from beat detector
+- Useful for aligning visualization with song structure (e.g., start of chorus, drop)
 - Supports negative values to shift backward
 
 ### Frequency Band Cutoffs (RGB Mode)
@@ -488,5 +496,5 @@ Depends on browser, typically:
 ---
 
 **Last Updated**: 2026-01-04
-**Version**: 3.1 (Added Z-order offset slider)
+**Version**: 3.2 (Added BPM detection and changed Z-order offset to seconds)
 **Author**: Built with Claude Code

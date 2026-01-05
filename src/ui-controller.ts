@@ -1,6 +1,7 @@
 // Main Application Controller
 // Manages UI state, event handlers, and audio processing workflow
 
+import * as BeatDetector from 'web-audio-beat-detector';
 import { getZOrderCoordinates } from './z-order.js';
 import { calculateRMSPower, applyFrequencyFiltering } from './audio-processor.js';
 import { powerToColor, redrawCanvas } from './visualizer.js';
@@ -33,6 +34,7 @@ let calculatedInfo: HTMLElement;
 
 let audioFileInput: HTMLInputElement;
 let bpmInput: HTMLInputElement;
+let detectBpmButton: HTMLButtonElement;
 let samplesPerBeatInput: HTMLSelectElement;
 let windowSizeInput: HTMLInputElement;
 let zOrderOffsetInput: HTMLInputElement;
@@ -64,6 +66,7 @@ export function init(): void {
     // Input elements
     audioFileInput = document.getElementById('audioFile') as HTMLInputElement;
     bpmInput = document.getElementById('bpm') as HTMLInputElement;
+    detectBpmButton = document.getElementById('detectBpm') as HTMLButtonElement;
     samplesPerBeatInput = document.getElementById('samplesPerBeat') as HTMLSelectElement;
     windowSizeInput = document.getElementById('windowSize') as HTMLInputElement;
     zOrderOffsetInput = document.getElementById('zOrderOffset') as HTMLInputElement;
@@ -94,6 +97,7 @@ export function init(): void {
  */
 function setupEventListeners(): void {
     audioFileInput.addEventListener('change', handleAudioFileChange);
+    detectBpmButton.addEventListener('click', handleDetectBpmClick);
     processButton.addEventListener('click', handleProcessClick);
     zOrderOffsetInput.addEventListener('input', handleZOrderOffsetInputChange);
     zOrderOffsetSlider.addEventListener('input', handleZOrderOffsetSliderChange);
@@ -122,9 +126,48 @@ async function handleAudioFileChange(e: Event): Promise<void> {
         const arrayBuffer = await file.arrayBuffer();
         state.audioBuffer = await state.audioContext.decodeAudioData(arrayBuffer);
         processButton.disabled = false;
+        detectBpmButton.disabled = false;
     } catch (error) {
         console.error('Error loading audio:', error);
         alert('Error loading audio file. Please try another file.');
+    }
+}
+
+/**
+ * Handle detect BPM button click
+ */
+async function handleDetectBpmClick(): Promise<void> {
+    if (!state.audioBuffer) return;
+
+    detectBpmButton.disabled = true;
+    detectBpmButton.textContent = 'Detecting...';
+
+    try {
+        const { bpm, offset, tempo } = await BeatDetector.guess(state.audioBuffer);
+
+        // Update BPM input
+        bpmInput.value = tempo.toFixed(2);
+
+        // Update z-order offset input (offset is in seconds from the library)
+        zOrderOffsetInput.value = offset.toFixed(3);
+
+        // Update slider if value is within range
+        if (offset >= -2 && offset <= 2) {
+            zOrderOffsetSlider.value = offset.toFixed(3);
+        }
+
+        detectBpmButton.textContent = `Detected: ${Math.round(bpm)} BPM`;
+
+        // Re-enable after 2 seconds
+        setTimeout(() => {
+            detectBpmButton.textContent = 'Detect BPM';
+            detectBpmButton.disabled = false;
+        }, 2000);
+    } catch (error) {
+        console.error('Error detecting BPM:', error);
+        alert('Error detecting BPM. Please try manually entering the BPM.');
+        detectBpmButton.textContent = 'Detect BPM';
+        detectBpmButton.disabled = false;
     }
 }
 
@@ -150,7 +193,7 @@ function handleProcessClick(): void {
 function handleZOrderOffsetInputChange(): void {
     const value = parseFloat(zOrderOffsetInput.value);
     // Update slider if value is within slider range
-    if (value >= -4 && value <= 4) {
+    if (value >= -2 && value <= 2) {
         zOrderOffsetSlider.value = value.toString();
     }
     updateVisualizationWithOffset();
@@ -161,7 +204,7 @@ function handleZOrderOffsetInputChange(): void {
  */
 function handleZOrderOffsetSliderChange(): void {
     const value = parseFloat(zOrderOffsetSlider.value);
-    zOrderOffsetInput.value = value.toFixed(2);
+    zOrderOffsetInput.value = value.toFixed(3);
     updateVisualizationWithOffset();
 }
 
@@ -170,8 +213,11 @@ function handleZOrderOffsetSliderChange(): void {
  */
 function updateVisualizationWithOffset(): void {
     if ((state.cachedPowers || state.cachedRGBPowers) && !state.isProcessing) {
-        const zOrderOffsetBeats = parseFloat(zOrderOffsetInput.value);
-        const zOrderOffset = Math.round(zOrderOffsetBeats * state.cachedSamplesPerBeat);
+        const zOrderOffsetSeconds = parseFloat(zOrderOffsetInput.value);
+        const bpm = parseFloat(bpmInput.value);
+        const beatsPerSecond = bpm / 60;
+        const windowsPerSecond = beatsPerSecond * state.cachedSamplesPerBeat;
+        const zOrderOffset = Math.round(zOrderOffsetSeconds * windowsPerSecond);
         redrawCanvas(state, canvas, zOrderOffset);
 
         if (state.audioBuffer) {
@@ -255,11 +301,14 @@ function handleCanvasClick(e: MouseEvent): void {
     const canvasX = (e.clientX - rect.left) * scaleX;
     const canvasY = (e.clientY - rect.top) * scaleY;
 
-    const zOrderOffsetBeats = parseFloat(zOrderOffsetInput.value);
-    const zOrderOffset = Math.round(zOrderOffsetBeats * state.cachedSamplesPerBeat);
+    const zOrderOffsetSeconds = parseFloat(zOrderOffsetInput.value);
+    const bpm = parseFloat(bpmInput.value);
+    const beatsPerSecond = bpm / 60;
+    const windowsPerSecond = beatsPerSecond * state.cachedSamplesPerBeat;
+    const zOrderOffset = Math.round(zOrderOffsetSeconds * windowsPerSecond);
 
     const time = getTimeForCanvasClick(canvasX, canvasY, {
-        bpm: parseFloat(bpmInput.value),
+        bpm: bpm,
         sampleRate: state.audioBuffer.sampleRate,
         cachedSamplesPerBeat: state.cachedSamplesPerBeat,
         zOrderOffset: zOrderOffset,
@@ -293,8 +342,11 @@ function handleWindowResize(): void {
 function updateMarkerWrapper(): void {
     if (!state.audioBuffer || !state.audioContext) return;
 
-    const zOrderOffsetBeats = parseFloat(zOrderOffsetInput.value);
-    const zOrderOffset = Math.round(zOrderOffsetBeats * state.cachedSamplesPerBeat);
+    const zOrderOffsetSeconds = parseFloat(zOrderOffsetInput.value);
+    const bpm = parseFloat(bpmInput.value);
+    const beatsPerSecond = bpm / 60;
+    const windowsPerSecond = beatsPerSecond * state.cachedSamplesPerBeat;
+    const zOrderOffset = Math.round(zOrderOffsetSeconds * windowsPerSecond);
 
     const time = updateMarker({
         audioBuffer: state.audioBuffer,
@@ -304,7 +356,7 @@ function updateMarkerWrapper(): void {
         cachedCanvasSize: state.cachedCanvasSize,
         seekSlider: seekSlider,
         onGetPosition: (t: number) => getCanvasPositionForTime(t, {
-            bpm: parseFloat(bpmInput.value),
+            bpm: bpm,
             sampleRate: state.audioBuffer!.sampleRate,
             cachedSamplesPerBeat: state.cachedSamplesPerBeat,
             cachedCanvasSize: state.cachedCanvasSize,
@@ -342,8 +394,7 @@ async function processAudio(): Promise<void> {
     const bpm = parseFloat(bpmInput.value);
     const samplesPerBeat = parseInt(samplesPerBeatInput.value);
     const windowSize = parseInt(windowSizeInput.value);
-    const zOrderOffsetBeats = parseFloat(zOrderOffsetInput.value);
-    const zOrderOffset = Math.round(zOrderOffsetBeats * samplesPerBeat);
+    const zOrderOffsetSeconds = parseFloat(zOrderOffsetInput.value);
     const vizMode = vizModeInput.value as 'mono' | 'rgb';
 
     const sampleRate = state.audioBuffer.sampleRate;
@@ -368,6 +419,9 @@ async function processAudio(): Promise<void> {
     const windowsPerSecond = beatsPerSecond * samplesPerBeat;
     const windowIntervalSeconds = 1 / windowsPerSecond;
     const windowIntervalSamples = windowIntervalSeconds * sampleRate;
+
+    // Calculate z-order offset in windows
+    const zOrderOffset = Math.round(zOrderOffsetSeconds * windowsPerSecond);
 
     // Calculate number of windows
     const audioLength = vizMode === 'rgb' ? filteredBands!.low.length : audioData!.length;
