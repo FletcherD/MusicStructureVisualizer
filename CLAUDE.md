@@ -261,7 +261,7 @@ The application includes synchronized audio playback with real-time visual track
    - Range: 1-300, default: 120
    - **Critical parameter**: Must match the song's actual tempo for patterns to emerge
    - **Detect BPM Button**: Automatically detects the BPM and first beat offset using the web-audio-beat-detector library
-     - Click after loading an audio file to auto-populate BPM and Z-Order Offset
+     - Click after loading an audio file to auto-populate BPM and Offset
      - Shows "Detecting..." during analysis
      - Displays detected BPM value on completion
 
@@ -270,12 +270,7 @@ The application includes synchronized audio playback with real-time visual track
    - **Must be power of 2** for optimal Z-order curve alignment
    - Higher values = more temporal resolution, larger canvas
 
-4. **Window Size** (samples):
-   - Dropdown: 128, 256, 512, 1024, 2048, 4096 (default: 512)
-   - Size of audio window for RMS calculation
-   - Larger = smoother but less precise
-
-5. **Z-Order Offset** (seconds):
+4. **Offset** (seconds):
    - **Number Input**: Any value (positive or negative), default: 0
    - **Slider**: Range -2 to +2 seconds with 0.001 step precision (high precision adjustment)
    - Both controls are synchronized - changing one updates the other
@@ -284,6 +279,11 @@ The application includes synchronized audio playback with real-time visual track
    - **Instant redraw** - no reprocessing required, uses cached power data
    - **Auto-populated by Detect BPM**: First beat offset automatically set when using BPM detection
    - Useful for exploring different visual starting points or aligning with song structure
+
+5. **Window Size** (samples):
+   - Dropdown: 128, 256, 512, 1024, 2048, 4096 (default: 512)
+   - Size of audio window for RMS calculation
+   - Larger = smoother but less precise
 
 6. **Visualization Mode**:
    - Options: "Mono (Power - Viridis)" or "RGB (Frequency Bands)"
@@ -323,7 +323,7 @@ Appear after first successful processing:
    - Red = bass, Green = mids, Blue = treble
    - Mixed colors = combined frequency content
 8. Use playback controls to listen and see synchronized visualization
-9. Adjust Z-Order Offset to explore different views (instant update)
+9. Adjust Offset to explore different views (instant update)
 10. Click on visualization to seek to specific positions
 
 ### Mono Mode Workflow
@@ -332,7 +332,7 @@ Appear after first successful processing:
 3. Adjust "Samples per Beat" if needed (256 is a good default)
 4. Click "Process" and wait for completion (faster than RGB mode)
 5. Interpret grayscale visualization with Viridis colormap (purple = quiet, yellow = loud)
-6. Use playback controls and adjust Z-Order Offset as needed
+6. Use playback controls and adjust Offset as needed
 
 ## Key Parameters and Their Effects
 
@@ -351,7 +351,7 @@ Appear after first successful processing:
 - **Larger (2048-4096)**: Smoother, less detail in fast passages
 - **Sweet spot**: 512-1024 samples at 44.1kHz ≈ 12-23ms window (default: 512)
 
-### Z-Order Offset
+### Offset
 - Shifts "starting position" in visualization (measured in seconds)
 - **Instant updates** - no reprocessing required
 - **Dual control system**:
@@ -378,7 +378,7 @@ Genre-specific recommendations:
    - Calculate precise start sample position
    - Compute RMS power
    - Store in cache array
-   - Apply Z-order offset and map to canvas coordinates
+   - Apply offset and map to canvas coordinates
    - Render pixel using temporary max power
    - Update canvas every 1000 samples
 4. Find maximum power from all computed values
@@ -392,13 +392,13 @@ Genre-specific recommendations:
    - Calculate precise start sample position
    - Compute RMS power for low, mid, and high bands
    - Store in cache arrays (3 separate arrays)
-   - Apply Z-order offset and map to canvas coordinates
+   - Apply offset and map to canvas coordinates
    - Render pixel using temporary max powers per band
    - Update canvas every 1000 samples
 5. Find maximum power for each band independently
 6. Redraw canvas with correct per-band normalization
 
-### Z-Order Offset Instant Redraw
+### Offset Instant Redraw
 When offset changes after processing:
 - Uses cached power values and max power levels (no recomputation)
 - Creates new ImageData and plots all points with new offset
@@ -460,7 +460,7 @@ Depends on browser, typically:
 
 1. **Manual Process Button**: Prevents accidental expensive recomputation while adjusting parameters
 
-2. **Instant Z-Order Offset Updates**: Enables rapid exploration using cached power data
+2. **Instant Offset Updates**: Enables rapid exploration using cached power data
 
 3. **Dynamic Normalization with Stable Reprocessing**:
    - Mono: Single max power for all pixels
@@ -499,5 +499,5 @@ Depends on browser, typically:
 ---
 
 **Last Updated**: 2026-01-04
-**Version**: 3.3 (Changed defaults: RGB mode, 256 samples/beat, 512 window size; made filter controls collapsible; improved parameter ranges)
+**Version**: 3.4 (Canvas-focused UI redesign: canvas as hero element, settings below in collapsible sections, CSS Grid layout, renamed Z-Order Offset to Offset)
 **Author**: Built with Claude Code

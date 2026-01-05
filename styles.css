@@ -86,12 +86,10 @@ h1 {
   max-width: 100%;
   height: auto;
   border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-md);
 }
 
 /* Canvas marker overlay */
 #markerOverlay {
-  border-radius: var(--radius-md);
 }
 
 /* ============================================
@@ -99,8 +97,8 @@ h1 {
    ============================================ */
 .progress-container {
   width: 100%;
-  max-width: 600px;
-  margin: var(--space-xl) auto;
+  max-width: 800px;
+  margin: 0 auto var(--space-3xl);
 }
 
 .progress-bar {
