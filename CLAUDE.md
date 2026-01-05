@@ -266,12 +266,12 @@ The application includes synchronized audio playback with real-time visual track
      - Displays detected BPM value on completion
 
 3. **Samples per Beat**:
-   - Dropdown: 1, 2, 4, 8, 16, 32, 64, 128, 256, 512 (default: 64)
+   - Dropdown: 64, 128, 256, 512, 1024, 2048, 4096 (default: 256)
    - **Must be power of 2** for optimal Z-order curve alignment
    - Higher values = more temporal resolution, larger canvas
 
 4. **Window Size** (samples):
-   - Range: 128-8192, default: 2048
+   - Dropdown: 128, 256, 512, 1024, 2048, 4096 (default: 512)
    - Size of audio window for RMS calculation
    - Larger = smoother but less precise
 
@@ -287,12 +287,13 @@ The application includes synchronized audio playback with real-time visual track
 
 6. **Visualization Mode**:
    - Options: "Mono (Power - Viridis)" or "RGB (Frequency Bands)"
-   - Default: Mono
+   - Default: RGB (Frequency Bands)
    - Changing mode requires clicking Process to recompute
 
-7. **Frequency Band Cutoffs** (RGB mode only):
+7. **Frequency Band Cutoffs** (collapsible section, shown when RGB mode is selected):
    - **Low/Mid Cutoff**: 50-1000 Hz (default: 250 Hz) - separates bass from mids
    - **Mid/High Cutoff**: 1000-12000 Hz (default: 4000 Hz) - separates mids from treble
+   - Section can be collapsed/expanded by clicking the header
    - Changing cutoffs requires clicking Process to recompute
 
 8. **Process Button**:
@@ -311,25 +312,27 @@ Appear after first successful processing:
 
 ## Usage Workflow
 
-### Basic Mono Mode Workflow
+### Basic RGB Frequency Visualization Workflow (Default)
 1. Open `index.html` in a modern web browser
 2. Click "Choose File" and select an audio file
 3. Click "Detect BPM" to automatically detect tempo and first beat offset (or manually enter BPM if preferred)
-4. Adjust "Samples per Beat" if needed (64 is a good default)
-5. Click "Process" and wait for completion
-6. Use playback controls to listen and see synchronized visualization
-7. Adjust Z-Order Offset to explore different views (instant update)
-8. Click on visualization to seek to specific positions
-
-### RGB Frequency Visualization Workflow
-1. Follow steps 1-4 above (load audio, detect BPM, adjust samples per beat)
-2. Select "RGB (Frequency Bands)" from Visualization Mode dropdown
-3. (Optional) Adjust frequency band cutoffs for specific musical styles
-4. Click "Process" and wait for completion (~3-4× longer than mono mode)
-5. Interpret color-coded visualization:
+4. Adjust "Samples per Beat" if needed (256 is a good default)
+5. (Optional) Expand "Frequency Band Cutoffs" section and adjust for specific musical styles
+6. Click "Process" and wait for completion
+7. Interpret color-coded visualization:
    - Red = bass, Green = mids, Blue = treble
    - Mixed colors = combined frequency content
-6. Experiment with different cutoff frequencies for different genres
+8. Use playback controls to listen and see synchronized visualization
+9. Adjust Z-Order Offset to explore different views (instant update)
+10. Click on visualization to seek to specific positions
+
+### Mono Mode Workflow
+1. Follow steps 1-3 above (load audio, detect BPM)
+2. Select "Mono (Power - Viridis)" from Visualization Mode dropdown
+3. Adjust "Samples per Beat" if needed (256 is a good default)
+4. Click "Process" and wait for completion (faster than RGB mode)
+5. Interpret grayscale visualization with Viridis colormap (purple = quiet, yellow = loud)
+6. Use playback controls and adjust Z-Order Offset as needed
 
 ## Key Parameters and Their Effects
 
@@ -339,14 +342,14 @@ Appear after first successful processing:
 - **Too high**: Patterns "compressed" - features appear smaller/denser
 
 ### Samples Per Beat
-- **Lower (1-8)**: Coarser resolution, smaller canvas, faster processing
-- **Higher (128-512)**: Finer resolution, larger canvas, slower processing
-- **Sweet spot**: 32-64 for most music
+- **Lower (64-128)**: Coarser resolution, smaller canvas, faster processing
+- **Higher (1024-4096)**: Finer resolution, larger canvas, slower processing
+- **Sweet spot**: 256-512 for most music (default: 256)
 
 ### Window Size
-- **Smaller (<1024)**: More responsive to transients, noisier
-- **Larger (>4096)**: Smoother, less detail in fast passages
-- **Sweet spot**: 2048 samples at 44.1kHz ≈ 46ms window
+- **Smaller (128-256)**: More responsive to transients, noisier
+- **Larger (2048-4096)**: Smoother, less detail in fast passages
+- **Sweet spot**: 512-1024 samples at 44.1kHz ≈ 12-23ms window (default: 512)
 
 ### Z-Order Offset
 - Shifts "starting position" in visualization (measured in seconds)
@@ -496,5 +499,5 @@ Depends on browser, typically:
 ---
 
 **Last Updated**: 2026-01-04
-**Version**: 3.2 (Added BPM detection and changed Z-order offset to seconds)
+**Version**: 3.3 (Changed defaults: RGB mode, 256 samples/beat, 512 window size; made filter controls collapsible; improved parameter ranges)
 **Author**: Built with Claude Code

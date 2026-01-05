@@ -36,11 +36,11 @@ let audioFileInput: HTMLInputElement;
 let bpmInput: HTMLInputElement;
 let detectBpmButton: HTMLButtonElement;
 let samplesPerBeatInput: HTMLSelectElement;
-let windowSizeInput: HTMLInputElement;
+let windowSizeInput: HTMLSelectElement;
 let zOrderOffsetInput: HTMLInputElement;
 let zOrderOffsetSlider: HTMLInputElement;
 let vizModeInput: HTMLSelectElement;
-let filterControlsGroup: HTMLElement;
+let filterControlsGroup: HTMLDetailsElement;
 let lowMidCutoffInput: HTMLInputElement;
 let midHighCutoffInput: HTMLInputElement;
 let processButton: HTMLButtonElement;
@@ -68,14 +68,17 @@ export function init(): void {
     bpmInput = document.getElementById('bpm') as HTMLInputElement;
     detectBpmButton = document.getElementById('detectBpm') as HTMLButtonElement;
     samplesPerBeatInput = document.getElementById('samplesPerBeat') as HTMLSelectElement;
-    windowSizeInput = document.getElementById('windowSize') as HTMLInputElement;
+    windowSizeInput = document.getElementById('windowSize') as HTMLSelectElement;
     zOrderOffsetInput = document.getElementById('zOrderOffset') as HTMLInputElement;
     zOrderOffsetSlider = document.getElementById('zOrderOffsetSlider') as HTMLInputElement;
     vizModeInput = document.getElementById('vizMode') as HTMLSelectElement;
-    filterControlsGroup = document.getElementById('filterControlsGroup')!;
+    filterControlsGroup = document.getElementById('filterControlsGroup') as HTMLDetailsElement;
     lowMidCutoffInput = document.getElementById('lowMidCutoff') as HTMLInputElement;
     midHighCutoffInput = document.getElementById('midHighCutoff') as HTMLInputElement;
     processButton = document.getElementById('processButton') as HTMLButtonElement;
+
+    // Clear file input on page load to ensure it reflects actual state
+    audioFileInput.value = '';
 
     // Playback control elements
     playbackControls = document.getElementById('playbackControls')!;
@@ -231,7 +234,7 @@ function updateVisualizationWithOffset(): void {
  */
 function handleVizModeChange(): void {
     const isRGB = vizModeInput.value === 'rgb';
-    filterControlsGroup.style.display = isRGB ? 'block' : 'none';
+    filterControlsGroup.open = isRGB;
 }
 
 /**
