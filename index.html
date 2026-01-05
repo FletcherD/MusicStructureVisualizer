@@ -479,6 +479,8 @@
         // Stop playback (internal - cleans up resources)
         function stopPlayback() {
             if (audioSource) {
+                // Clear onended callback to prevent it from firing when we stop manually
+                audioSource.onended = null;
                 try {
                     audioSource.stop();
                 } catch (e) {
