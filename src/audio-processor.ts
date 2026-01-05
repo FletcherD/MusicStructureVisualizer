@@ -1,14 +1,20 @@
 // Audio Processing Utilities
 // RMS power calculation and frequency band filtering
 
+import type { FilteredBands } from './types.js';
+
 /**
  * Calculate RMS (Root Mean Square) power of an audio window
- * @param {Float32Array} audioData - Audio sample data
- * @param {number} startSample - Start sample index
- * @param {number} windowSize - Window size in samples
- * @returns {number} RMS power value
+ * @param audioData - Audio sample data
+ * @param startSample - Start sample index
+ * @param windowSize - Window size in samples
+ * @returns RMS power value
  */
-export function calculateRMSPower(audioData, startSample, windowSize) {
+export function calculateRMSPower(
+    audioData: Float32Array,
+    startSample: number,
+    windowSize: number
+): number {
     let sum = 0;
     const endSample = Math.min(startSample + windowSize, audioData.length);
     const actualWindowSize = endSample - startSample;
@@ -23,12 +29,16 @@ export function calculateRMSPower(audioData, startSample, windowSize) {
 /**
  * Apply frequency filtering to separate audio into 3 bands (low, mid, high)
  * Uses Web Audio API's OfflineAudioContext and BiquadFilterNode for performance
- * @param {AudioBuffer} audioBuffer - Input audio buffer
- * @param {number} lowMidCutoff - Frequency separating low and mid bands (Hz)
- * @param {number} midHighCutoff - Frequency separating mid and high bands (Hz)
- * @returns {Promise<{low: Float32Array, mid: Float32Array, high: Float32Array}>} Filtered audio data
+ * @param audioBuffer - Input audio buffer
+ * @param lowMidCutoff - Frequency separating low and mid bands (Hz)
+ * @param midHighCutoff - Frequency separating mid and high bands (Hz)
+ * @returns Filtered audio data
  */
-export async function applyFrequencyFiltering(audioBuffer, lowMidCutoff, midHighCutoff) {
+export async function applyFrequencyFiltering(
+    audioBuffer: AudioBuffer,
+    lowMidCutoff: number,
+    midHighCutoff: number
+): Promise<FilteredBands> {
     const sampleRate = audioBuffer.sampleRate;
     const length = audioBuffer.length;
 

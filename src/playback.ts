@@ -2,24 +2,33 @@
 // Manages audio playback state and visual marker tracking
 
 import { getZOrderCoordinates, interleave } from './z-order.js';
+import type {
+    PlaybackState,
+    Coordinates,
+    PositionParams,
+    TimeParams,
+    PlaybackParams,
+    PauseParams,
+    MarkerParams
+} from './types.js';
 
 // Playback state
-export const playbackState = {
-    audioSource: null,           // Current AudioBufferSourceNode
-    isPlaying: false,            // Playing/paused state
-    playbackStartTime: 0,        // audioContext.currentTime when playback started
-    playbackStartOffset: 0,      // Audio buffer offset (for pause/resume)
-    animationFrameId: null,      // For canceling requestAnimationFrame
-    currentPlaybackTime: 0       // Current position in seconds
+export const playbackState: PlaybackState = {
+    audioSource: null,
+    isPlaying: false,
+    playbackStartTime: 0,
+    playbackStartOffset: 0,
+    animationFrameId: null,
+    currentPlaybackTime: 0
 };
 
 /**
  * Map audio time to canvas coordinates
- * @param {number} time - Time in seconds
- * @param {object} params - Parameters (bpm, sampleRate, cachedSamplesPerBeat, cachedCanvasSize, zOrderOffset, audioBuffer)
- * @returns {{x: number, y: number}|null} Canvas position or null if out of bounds
+ * @param time - Time in seconds
+ * @param params - Parameters
+ * @returns Canvas position or null if out of bounds
  */
-export function getCanvasPositionForTime(time, params) {
+export function getCanvasPositionForTime(time: number, params: PositionParams): Coordinates | null {
     const { bpm, sampleRate, cachedSamplesPerBeat, cachedCanvasSize, zOrderOffset } = params;
 
     if (!cachedSamplesPerBeat || !cachedCanvasSize) return null;
@@ -46,12 +55,12 @@ export function getCanvasPositionForTime(time, params) {
 
 /**
  * Reverse mapping: canvas coordinates to audio time
- * @param {number} canvasX - Canvas X coordinate
- * @param {number} canvasY - Canvas Y coordinate
- * @param {object} params - Parameters (bpm, sampleRate, cachedSamplesPerBeat, zOrderOffset, audioDuration)
- * @returns {number|null} Time in seconds or null if invalid
+ * @param canvasX - Canvas X coordinate
+ * @param canvasY - Canvas Y coordinate
+ * @param params - Parameters
+ * @returns Time in seconds or null if invalid
  */
-export function getTimeForCanvasClick(canvasX, canvasY, params) {
+export function getTimeForCanvasClick(canvasX: number, canvasY: number, params: TimeParams): number | null {
     const { bpm, sampleRate, cachedSamplesPerBeat, zOrderOffset, audioDuration } = params;
 
     if (!cachedSamplesPerBeat) return null;
@@ -78,10 +87,10 @@ export function getTimeForCanvasClick(canvasX, canvasY, params) {
 
 /**
  * Start or resume audio playback
- * @param {number} fromTime - Time to start from (seconds)
- * @param {object} params - Parameters (audioBuffer, audioContext, playPauseButton, callbacks)
+ * @param fromTime - Time to start from (seconds)
+ * @param params - Parameters
  */
-export async function startPlayback(fromTime, params) {
+export async function startPlayback(fromTime: number, params: PlaybackParams): Promise<void> {
     const { audioBuffer, audioContext, playPauseButton, onUpdateMarker } = params;
 
     if (!audioBuffer || !audioContext) return;
@@ -126,9 +135,9 @@ export async function startPlayback(fromTime, params) {
 
 /**
  * Pause audio playback
- * @param {object} params - Parameters (audioContext, playPauseButton)
+ * @param params - Parameters
  */
-export function pausePlayback(params) {
+export function pausePlayback(params: PauseParams): void {
     const { audioContext, playPauseButton } = params;
 
     if (!playbackState.isPlaying) return;
@@ -147,7 +156,7 @@ export function pausePlayback(params) {
 /**
  * Stop playback (internal - cleans up resources)
  */
-export function stopPlayback() {
+export function stopPlayback(): void {
     if (playbackState.audioSource) {
         // Clear onended callback to prevent it from firing when we stop manually
         playbackState.audioSource.onended = null;
@@ -168,16 +177,17 @@ export function stopPlayback() {
 
 /**
  * Update marker position (called every frame while playing)
- * @param {object} params - Parameters (audioBuffer, audioContext, canvas, markerOverlay, cachedCanvasSize, callbacks)
+ * @param params - Parameters
+ * @returns Current time in seconds
  */
-export function updateMarker(params) {
+export function updateMarker(params: MarkerParams): number {
     const { audioBuffer, audioContext, canvas, markerOverlay, cachedCanvasSize,
             seekSlider, onGetPosition, onPausePlayback } = params;
 
-    if (!markerOverlay || !canvas) return;
+    if (!markerOverlay || !canvas) return 0;
 
     // Calculate current time
-    let time;
+    let time: number;
     if (playbackState.isPlaying) {
         time = playbackState.playbackStartOffset +
             (audioContext.currentTime - playbackState.playbackStartTime);
@@ -185,22 +195,24 @@ export function updateMarker(params) {
         // Check if playback finished
         if (time >= audioBuffer.duration) {
             time = audioBuffer.duration;
-            if (onPausePlayback) onPausePlayback();
+            onPausePlayback();
         }
     } else {
         time = playbackState.currentPlaybackTime;
     }
 
-    // Update time display and seek slider (handled by caller)
+    // Update seek slider
     if (seekSlider) {
-        seekSlider.value = (time / audioBuffer.duration) * 100;
+        seekSlider.value = ((time / audioBuffer.duration) * 100).toString();
     }
 
     // Get canvas position
-    const position = onGetPosition ? onGetPosition(time) : null;
+    const position = onGetPosition(time);
 
     // Clear overlay
     const markerCtx = markerOverlay.getContext('2d');
+    if (!markerCtx) return time;
+
     markerCtx.clearRect(0, 0, markerOverlay.width, markerOverlay.height);
 
     if (position) {
@@ -226,10 +238,10 @@ export function updateMarker(params) {
 
 /**
  * Format seconds to MM:SS
- * @param {number} seconds - Time in seconds
- * @returns {string} Formatted time string
+ * @param seconds - Time in seconds
+ * @returns Formatted time string
  */
-export function formatTime(seconds) {
+export function formatTime(seconds: number): string {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -237,10 +249,10 @@ export function formatTime(seconds) {
 
 /**
  * Setup overlay canvas to match main canvas
- * @param {HTMLCanvasElement} canvas - Main canvas
- * @param {HTMLCanvasElement} markerOverlay - Overlay canvas
+ * @param canvas - Main canvas
+ * @param markerOverlay - Overlay canvas
  */
-export function setupOverlayCanvas(canvas, markerOverlay) {
+export function setupOverlayCanvas(canvas: HTMLCanvasElement, markerOverlay: HTMLCanvasElement): void {
     // Show marker overlay canvas
     markerOverlay.style.display = 'block';
 
@@ -252,7 +264,9 @@ export function setupOverlayCanvas(canvas, markerOverlay) {
 
     // Calculate canvas position within parent container
     const canvasRect = canvas.getBoundingClientRect();
-    const containerRect = canvas.parentElement.getBoundingClientRect();
-    markerOverlay.style.left = `${canvasRect.left - containerRect.left}px`;
-    markerOverlay.style.top = `${canvasRect.top - containerRect.top}px`;
+    const containerRect = canvas.parentElement?.getBoundingClientRect();
+    if (containerRect) {
+        markerOverlay.style.left = `${canvasRect.left - containerRect.left}px`;
+        markerOverlay.style.top = `${canvasRect.top - containerRect.top}px`;
+    }
 }

@@ -1,0 +1,24 @@
+{
+  "name": "webfft",
+  "version": "2.0.0",
+  "description": "Audio Structure Visualizer using Z-order curve mapping",
+  "scripts": {
+    "dev": "esbuild src/ui-controller.ts --bundle --sourcemap --outfile=dist/app.js --watch",
+    "build": "esbuild src/ui-controller.ts --bundle --minify --sourcemap --outfile=dist/app.js",
+    "serve": "python3 -m http.server 8000"
+  },
+  "devDependencies": {
+    "esbuild": "^0.20.0",
+    "typescript": "^5.3.3"
+  },
+  "keywords": [
+    "audio",
+    "visualization",
+    "z-order",
+    "morton-curve",
+    "fft",
+    "web-audio"
+  ],
+  "author": "Built with Claude Code",
+  "license": "MIT"
+}

@@ -19,61 +19,105 @@ The key insight: **When window intervals match the musical tempo, periodic patte
 
 ## File Structure
 
-The application is organized into modular JavaScript ES6 modules for maintainability:
+The application is written in TypeScript and built with esbuild into a single bundled JavaScript file:
 
 ```
 WebFFT/
-├── index.html          # HTML structure + module initialization
-├── styles.css          # All CSS styling
-├── SPEC.md            # Original specification document
-├── CLAUDE.md          # This documentation file
-└── js/
-    ├── constants.js        # Viridis colormap data
-    ├── z-order.js          # Z-order curve utilities
-    ├── audio-processor.js  # RMS calculation + frequency filtering
-    ├── visualizer.js       # Canvas rendering and color mapping
-    ├── playback.js         # Audio playback control and time tracking
-    └── ui-controller.js    # Main application logic and event handlers
+├── index.html              # HTML structure + bundled script
+├── styles.css              # All CSS styling
+├── package.json            # npm dependencies and build scripts
+├── tsconfig.json           # TypeScript configuration
+├── .gitignore             # Git ignore patterns
+├── SPEC.md                # Original specification document
+├── CLAUDE.md              # This documentation file
+├── src/                   # TypeScript source files
+│   ├── types.ts               # Shared type definitions
+│   ├── constants.ts           # Viridis colormap data
+│   ├── z-order.ts             # Z-order curve utilities
+│   ├── audio-processor.ts     # RMS calculation + frequency filtering
+│   ├── visualizer.ts          # Canvas rendering and color mapping
+│   ├── playback.ts            # Audio playback control and time tracking
+│   └── ui-controller.ts       # Main application logic and event handlers
+└── dist/                  # Build output (generated)
+    ├── app.js                 # Bundled JavaScript (14KB minified)
+    └── app.js.map             # Source maps for debugging
 ```
+
+## Development Setup
+
+### Prerequisites
+- Node.js (v14 or later)
+- npm or yarn
+
+### Installation
+```bash
+npm install
+```
+
+### Development Workflow
+```bash
+# Development mode with watch (rebuilds on file changes)
+npm run dev
+
+# Production build (minified)
+npm run build
+
+# Start local web server
+npm run serve
+# Then open http://localhost:8000
+```
+
+### Build Output
+- **Minified bundle**: 14.3 KB (all code in single file)
+- **Source maps**: Included for debugging TypeScript in browser
+- **No CORS issues**: Works with file:// protocol or local server
 
 ### Module Responsibilities
 
-**constants.js**
+**types.ts**
+- Shared TypeScript interfaces and types
+- `AppState`: Application state structure
+- `PlaybackState`: Playback state structure
+- `RGBPowers`, `FilteredBands`: Audio data structures
+- `Coordinates`, `PositionParams`, etc.: Function parameter types
+
+**constants.ts**
 - Exports the 256-color Viridis colormap lookup table
+- Typed as `RGBColor[]` for type safety
 - Provides perceptually uniform, colorblind-friendly color data
 
-**z-order.js**
-- `interleave(x, y)`: Convert 2D coordinates to Z-order index
-- `getZOrderCoordinates(index, width)`: Convert linear index to 2D coordinates
+**z-order.ts**
+- `interleave(x: number, y: number): number`: Convert 2D coordinates to Z-order index
+- `getZOrderCoordinates(index: number, width: number): Coordinates`: Convert linear index to 2D coordinates
 - Implements Morton curve space-filling algorithm
 
-**audio-processor.js**
-- `calculateRMSPower(audioData, startSample, windowSize)`: Compute RMS power of audio window
-- `applyFrequencyFiltering(audioBuffer, lowMidCutoff, midHighCutoff)`: Split audio into 3 frequency bands using Web Audio API filters
-- Returns filtered audio data as `{low, mid, high}` Float32Arrays
+**audio-processor.ts**
+- `calculateRMSPower(audioData: Float32Array, startSample: number, windowSize: number): number`: Compute RMS power
+- `applyFrequencyFiltering(audioBuffer: AudioBuffer, lowMidCutoff: number, midHighCutoff: number): Promise<FilteredBands>`: Split audio into 3 frequency bands
+- Uses Web Audio API filters, returns typed filtered audio data
 
-**visualizer.js**
-- `powerToColor(power, minPower, maxPower)`: Map power value to Viridis color (RGBA)
-- `redrawCanvas(state, canvas, zOrderOffset)`: Redraw visualization using cached power data
+**visualizer.ts**
+- `powerToColor(power: number, minPower: number, maxPower: number): RGBAColor`: Map power value to Viridis color
+- `redrawCanvas(state: AppState, canvas: HTMLCanvasElement, zOrderOffset: number): void`: Redraw visualization
 - Handles both mono (Viridis) and RGB (frequency band) rendering modes
 
-**playback.js**
+**playback.ts**
 - Manages playback state (source node, timing, animation frame)
-- `getCanvasPositionForTime(time, params)`: Map audio time to canvas coordinates
-- `getTimeForCanvasClick(canvasX, canvasY, params)`: Reverse map canvas click to audio time
-- `startPlayback(fromTime, params)`: Start/resume audio playback
-- `pausePlayback(params)`: Pause audio playback
-- `updateMarker(params)`: Update visual marker position (~60 FPS)
-- `formatTime(seconds)`: Format time as MM:SS
-- `setupOverlayCanvas(canvas, markerOverlay)`: Position overlay canvas for marker rendering
+- `getCanvasPositionForTime(time: number, params: PositionParams): Coordinates | null`: Map audio time to canvas coordinates
+- `getTimeForCanvasClick(canvasX: number, canvasY: number, params: TimeParams): number | null`: Reverse mapping
+- `startPlayback(fromTime: number, params: PlaybackParams): Promise<void>`: Start/resume audio playback
+- `pausePlayback(params: PauseParams): void`: Pause audio playback
+- `updateMarker(params: MarkerParams): number`: Update visual marker position (~60 FPS)
+- `formatTime(seconds: number): string`: Format time as MM:SS
+- `setupOverlayCanvas(canvas: HTMLCanvasElement, markerOverlay: HTMLCanvasElement): void`: Position overlay canvas
 
-**ui-controller.js**
-- Main application entry point (`init()` function)
-- Manages application state (audio buffer, cached powers, max power values)
-- Event handlers for all UI interactions
-- `processAudio()`: Main processing pipeline
-- `processMonoMode()`: Mono visualization processing
-- `processRGBMode()`: RGB frequency visualization processing
+**ui-controller.ts**
+- Main application entry point (`init()` function, auto-called on DOM ready)
+- Manages typed application state (audio buffer, cached powers, max power values)
+- Event handlers for all UI interactions with proper types
+- `processAudio(): Promise<void>`: Main processing pipeline
+- `processMonoMode(...)`: Mono visualization processing
+- `processRGBMode(...)`: RGB frequency visualization processing
 
 ## Technical Implementation
 
@@ -343,11 +387,13 @@ When offset changes after processing:
 ## Technical Requirements
 
 ### Browser Support
-Modern browsers with WebAudio API and ES6 module support:
-- Chrome 61+
+Modern browsers with WebAudio API support:
+- Chrome 61+ (recommended)
 - Firefox 60+
 - Safari 11+
 - Edge 79+
+
+**Note**: The bundled JavaScript works in all modern browsers. No ES6 module support required since code is bundled into a single file.
 
 ### Audio Format Support
 Depends on browser, typically:
@@ -359,20 +405,36 @@ Depends on browser, typically:
 
 ## Development Notes
 
-### Why Modular Architecture?
-- **Maintainability**: Logical separation of concerns
-- **Testability**: Individual modules can be tested independently
-- **Readability**: Smaller, focused files are easier to understand
-- **Reusability**: Modules can be imported and used in other projects
-- **Modern**: Uses ES6 modules natively supported by browsers
+### Why TypeScript + esbuild?
+
+**Type Safety Benefits:**
+- Compile-time error checking prevents runtime bugs
+- IDE autocomplete and inline documentation
+- Refactoring with confidence (rename, move functions safely)
+- Clear contracts between modules via interfaces
+- Null/undefined safety catches audio data edge cases
+
+**Build Benefits:**
+- **Single file output**: 14.3 KB minified, no CORS issues
+- **Fast builds**: esbuild compiles in milliseconds (~4ms)
+- **Source maps**: Debug TypeScript directly in browser
+- **Works everywhere**: Bundled code runs in any modern browser
+- **Simple tooling**: One config file, three npm scripts
+
+**Developer Experience:**
+- Watch mode for instant feedback during development
+- Type errors shown in editor before build
+- No need for local web server during development (bundle works with file://)
+- Easy to onboard new developers (types document the code)
 
 ### Module Dependencies
-- `constants.js`: No dependencies (pure data)
-- `z-order.js`: No dependencies (pure functions)
-- `audio-processor.js`: No dependencies (uses Web Audio API)
-- `visualizer.js`: Imports `constants.js`, `z-order.js`
-- `playback.js`: Imports `z-order.js`
-- `ui-controller.js`: Imports all other modules (main orchestrator)
+- `types.ts`: No dependencies (pure type definitions)
+- `constants.ts`: Imports `types.ts` for type annotations
+- `z-order.ts`: Imports `types.ts` for return types
+- `audio-processor.ts`: Imports `types.ts` for typed parameters and returns
+- `visualizer.ts`: Imports `constants.ts`, `z-order.ts`, `types.ts`
+- `playback.ts`: Imports `z-order.ts`, `types.ts`
+- `ui-controller.ts`: Imports all other modules (main orchestrator)
 
 ### Key Design Decisions
 
@@ -417,5 +479,5 @@ Depends on browser, typically:
 ---
 
 **Last Updated**: 2026-01-04
-**Version**: 2.0 (Modular Architecture)
+**Version**: 3.0 (TypeScript + esbuild)
 **Author**: Built with Claude Code

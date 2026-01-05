@@ -1,6 +1,8 @@
 // Viridis colormap (256 colors)
 // Perceptually uniform, colorblind-friendly colormap for power visualization
-export const viridisMap = [
+import type { RGBColor } from './types.js';
+
+export const viridisMap: RGBColor[] = [
     [68, 1, 84], [68, 2, 86], [69, 4, 87], [69, 5, 89], [70, 7, 90], [70, 8, 92], [70, 10, 93], [70, 11, 94],
     [71, 13, 96], [71, 14, 97], [71, 16, 99], [71, 17, 100], [71, 19, 101], [72, 20, 103], [72, 22, 104], [72, 23, 105],
     [72, 24, 106], [72, 26, 108], [72, 27, 109], [72, 28, 110], [72, 29, 111], [72, 31, 112], [72, 32, 113], [72, 33, 115],

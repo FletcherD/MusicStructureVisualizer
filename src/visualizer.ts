@@ -3,15 +3,16 @@
 
 import { viridisMap } from './constants.js';
 import { getZOrderCoordinates } from './z-order.js';
+import type { AppState, RGBAColor } from './types.js';
 
 /**
  * Convert power value to color using Viridis colormap
- * @param {number} power - Power value to convert
- * @param {number} minPower - Minimum power in range
- * @param {number} maxPower - Maximum power in range
- * @returns {number[]} RGBA color array [r, g, b, a]
+ * @param power - Power value to convert
+ * @param minPower - Minimum power in range
+ * @param maxPower - Maximum power in range
+ * @returns RGBA color array
  */
-export function powerToColor(power, minPower, maxPower) {
+export function powerToColor(power: number, minPower: number, maxPower: number): RGBAColor {
     // Handle edge case where all powers are the same
     if (minPower === maxPower) {
         const [r, g, b] = viridisMap[128]; // Use middle color
@@ -26,16 +27,17 @@ export function powerToColor(power, minPower, maxPower) {
 
 /**
  * Redraw canvas using cached power data with current Z-order offset
- * @param {object} state - Application state containing cached data and settings
- * @param {HTMLCanvasElement} canvas - Target canvas element
- * @param {number} zOrderOffset - Z-order offset in samples
+ * @param state - Application state containing cached data and settings
+ * @param canvas - Target canvas element
+ * @param zOrderOffset - Z-order offset in samples
  */
-export function redrawCanvas(state, canvas, zOrderOffset) {
+export function redrawCanvas(state: AppState, canvas: HTMLCanvasElement, zOrderOffset: number): void {
     const { cachedPowers, cachedRGBPowers, cachedCanvasSize, cachedVizMode, maxPowerMono, maxPowerRGB } = state;
 
     if (!cachedPowers && !cachedRGBPowers) return;
 
     const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
     // Create new image data
     const imageData = ctx.createImageData(cachedCanvasSize, cachedCanvasSize);
@@ -45,7 +47,7 @@ export function redrawCanvas(state, canvas, zOrderOffset) {
         imageData.data[i + 3] = 255; // Set alpha to opaque
     }
 
-    if (cachedVizMode === 'mono') {
+    if (cachedVizMode === 'mono' && cachedPowers) {
         // Mono mode: Use Viridis colormap with normalized scale
         const minPower = 0;
         const maxPower = maxPowerMono;
@@ -63,7 +65,7 @@ export function redrawCanvas(state, canvas, zOrderOffset) {
                 imageData.data[pixelIndex + 3] = color[3];
             }
         }
-    } else {
+    } else if (cachedRGBPowers) {
         // RGB mode: Map frequency bands to RGB channels with normalization
         for (let i = 0; i < cachedRGBPowers.low.length; i++) {
             const index = i + zOrderOffset;

@@ -8,61 +8,77 @@ import {
     playbackState, startPlayback, pausePlayback, updateMarker, formatTime,
     setupOverlayCanvas, getCanvasPositionForTime, getTimeForCanvasClick
 } from './playback.js';
+import type { AppState, FilteredBands } from './types.js';
 
 // Application state
-const state = {
+const state: AppState = {
     audioContext: null,
     audioBuffer: null,
     isProcessing: false,
-
-    // Cached computation results for quick redraw
-    cachedPowers: null,        // Mono mode: single power array
-    cachedRGBPowers: null,     // RGB mode: {low, mid, high} arrays
+    cachedPowers: null,
+    cachedRGBPowers: null,
     cachedCanvasSize: 0,
     cachedSamplesPerBeat: 0,
     cachedVizMode: 'mono',
-
-    // Max power levels for normalization
     maxPowerMono: 1.0,
     maxPowerRGB: { low: 1.0, mid: 1.0, high: 1.0 }
 };
 
 // DOM elements
-let canvas, ctx, progressContainer, progressFill, calculatedInfo;
-let audioFileInput, bpmInput, samplesPerBeatInput, windowSizeInput, zOrderOffsetInput;
-let vizModeInput, filterControlsGroup, lowMidCutoffInput, midHighCutoffInput, processButton;
-let playbackControls, playPauseButton, seekSlider, currentTimeDisplay, totalTimeDisplay, markerOverlay;
+let canvas: HTMLCanvasElement;
+let ctx: CanvasRenderingContext2D;
+let progressContainer: HTMLElement;
+let progressFill: HTMLElement;
+let calculatedInfo: HTMLElement;
+
+let audioFileInput: HTMLInputElement;
+let bpmInput: HTMLInputElement;
+let samplesPerBeatInput: HTMLSelectElement;
+let windowSizeInput: HTMLInputElement;
+let zOrderOffsetInput: HTMLInputElement;
+let vizModeInput: HTMLSelectElement;
+let filterControlsGroup: HTMLElement;
+let lowMidCutoffInput: HTMLInputElement;
+let midHighCutoffInput: HTMLInputElement;
+let processButton: HTMLButtonElement;
+
+let playbackControls: HTMLElement;
+let playPauseButton: HTMLButtonElement;
+let seekSlider: HTMLInputElement;
+let currentTimeDisplay: HTMLElement;
+let totalTimeDisplay: HTMLElement;
+let markerOverlay: HTMLCanvasElement;
 
 /**
  * Initialize the application
  */
-export function init() {
+export function init(): void {
     // Get DOM elements
-    canvas = document.getElementById('visualizer');
-    ctx = canvas.getContext('2d');
-    progressContainer = document.getElementById('progressContainer');
-    progressFill = document.getElementById('progressFill');
-    calculatedInfo = document.getElementById('calculatedInfo');
+    canvas = document.getElementById('visualizer') as HTMLCanvasElement;
+    ctx = canvas.getContext('2d')!;
+    progressContainer = document.getElementById('progressContainer')!;
+    progressFill = document.getElementById('progressFill')!;
+    calculatedInfo = document.getElementById('calculatedInfo')!;
 
     // Input elements
-    audioFileInput = document.getElementById('audioFile');
-    bpmInput = document.getElementById('bpm');
-    samplesPerBeatInput = document.getElementById('samplesPerBeat');
-    windowSizeInput = document.getElementById('windowSize');
-    zOrderOffsetInput = document.getElementById('zOrderOffset');
-    vizModeInput = document.getElementById('vizMode');
-    filterControlsGroup = document.getElementById('filterControlsGroup');
-    lowMidCutoffInput = document.getElementById('lowMidCutoff');
-    midHighCutoffInput = document.getElementById('midHighCutoff');
-    processButton = document.getElementById('processButton');
+    audioFileInput = document.getElementById('audioFile') as HTMLInputElement;
+    bpmInput = document.getElementById('bpm') as HTMLInputElement;
+    samplesPerBeatInput = document.getElementById('samplesPerBeat') as HTMLSelectElement;
+    windowSizeInput = document.getElementById('windowSize') as HTMLInputElement;
+    zOrderOffsetInput = document.getElementById('zOrderOffset') as HTMLInputElement;
+    vizModeInput = document.getElementById('vizMode') as HTMLSelectElement;
+    filterControlsGroup = document.getElementById('filterControlsGroup')!;
+    lowMidCutoffInput = document.getElementById('lowMidCutoff') as HTMLInputElement;
+    midHighCutoffInput = document.getElementById('midHighCutoff') as HTMLInputElement;
+    processButton = document.getElementById('processButton') as HTMLButtonElement;
 
     // Playback control elements
-    playbackControls = document.getElementById('playbackControls');
-    playPauseButton = document.getElementById('playPauseButton');
-    seekSlider = document.getElementById('seekSlider');
-    currentTimeDisplay = document.getElementById('currentTime');
-    totalTimeDisplay = document.getElementById('totalTime');
-    markerOverlay = document.getElementById('markerOverlay');
+    playbackControls = document.getElementById('playbackControls')!;
+    playPauseButton = document.getElementById('playPauseButton') as HTMLButtonElement;
+    seekSlider = document.getElementById('seekSlider') as HTMLInputElement;
+    currentTimeDisplay = document.getElementById('currentTime')!;
+    totalTimeDisplay = document.getElementById('totalTime')!;
+    markerOverlay = document.getElementById('markerOverlay') as HTMLCanvasElement;
 
     // Setup event listeners
     setupEventListeners();
@@ -74,41 +90,29 @@ export function init() {
 /**
  * Setup all event listeners
  */
-function setupEventListeners() {
-    // Audio file loading
+function setupEventListeners(): void {
     audioFileInput.addEventListener('change', handleAudioFileChange);
-
-    // Process button
     processButton.addEventListener('click', handleProcessClick);
-
-    // Z-order offset - instant redraw
     zOrderOffsetInput.addEventListener('input', handleZOrderOffsetChange);
-
-    // Visualization mode change
     vizModeInput.addEventListener('change', handleVizModeChange);
-
-    // Filter cutoff displays
     lowMidCutoffInput.addEventListener('input', updateFilterDisplays);
     midHighCutoffInput.addEventListener('input', updateFilterDisplays);
-
-    // Playback controls
     playPauseButton.addEventListener('click', handlePlayPauseClick);
     seekSlider.addEventListener('input', handleSeekChange);
     canvas.addEventListener('click', handleCanvasClick);
-
-    // Window resize
     window.addEventListener('resize', handleWindowResize);
 }
 
 /**
  * Handle audio file selection
  */
-async function handleAudioFileChange(e) {
-    const file = e.target.files[0];
+async function handleAudioFileChange(e: Event): Promise<void> {
+    const target = e.target as HTMLInputElement;
+    const file = target.files?.[0];
     if (!file) return;
 
     if (!state.audioContext) {
-        state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        state.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
 
     try {
@@ -124,12 +128,11 @@ async function handleAudioFileChange(e) {
 /**
  * Handle process button click
  */
-function handleProcessClick() {
+function handleProcessClick(): void {
     if (state.audioBuffer && !state.isProcessing) {
-        // Pause playback when reprocessing
         if (playbackState.isPlaying) {
             pausePlayback({
-                audioContext: state.audioContext,
+                audioContext: state.audioContext!,
                 playPauseButton: playPauseButton
             });
         }
@@ -141,7 +144,7 @@ function handleProcessClick() {
 /**
  * Handle Z-order offset change - instant redraw
  */
-function handleZOrderOffsetChange() {
+function handleZOrderOffsetChange(): void {
     if ((state.cachedPowers || state.cachedRGBPowers) && !state.isProcessing) {
         const zOrderOffsetBeats = parseFloat(zOrderOffsetInput.value);
         const zOrderOffset = Math.round(zOrderOffsetBeats * state.cachedSamplesPerBeat);
@@ -156,7 +159,7 @@ function handleZOrderOffsetChange() {
 /**
  * Handle visualization mode change
  */
-function handleVizModeChange() {
+function handleVizModeChange(): void {
     const isRGB = vizModeInput.value === 'rgb';
     filterControlsGroup.style.display = isRGB ? 'block' : 'none';
 }
@@ -164,30 +167,30 @@ function handleVizModeChange() {
 /**
  * Update filter cutoff displays
  */
-function updateFilterDisplays() {
+function updateFilterDisplays(): void {
     const lowMid = lowMidCutoffInput.value;
     const midHigh = midHighCutoffInput.value;
-    document.getElementById('lowMidDisplay').textContent = lowMid;
-    document.getElementById('lowMidDisplay2').textContent = lowMid;
-    document.getElementById('midHighDisplay').textContent = midHigh;
-    document.getElementById('midHighDisplay2').textContent = midHigh;
+    document.getElementById('lowMidDisplay')!.textContent = lowMid;
+    document.getElementById('lowMidDisplay2')!.textContent = lowMid;
+    document.getElementById('midHighDisplay')!.textContent = midHigh;
+    document.getElementById('midHighDisplay2')!.textContent = midHigh;
 }
 
 /**
  * Handle play/pause button click
  */
-function handlePlayPauseClick() {
+function handlePlayPauseClick(): void {
     if (!state.audioBuffer || (!state.cachedPowers && !state.cachedRGBPowers)) return;
 
     if (playbackState.isPlaying) {
         pausePlayback({
-            audioContext: state.audioContext,
+            audioContext: state.audioContext!,
             playPauseButton: playPauseButton
         });
     } else {
         startPlayback(playbackState.currentPlaybackTime, {
             audioBuffer: state.audioBuffer,
-            audioContext: state.audioContext,
+            audioContext: state.audioContext!,
             playPauseButton: playPauseButton,
             onUpdateMarker: updateMarkerWrapper
         });
@@ -197,16 +200,17 @@ function handlePlayPauseClick() {
 /**
  * Handle seek slider change
  */
-function handleSeekChange(e) {
+function handleSeekChange(e: Event): void {
     if (!state.audioBuffer) return;
 
-    const time = (parseFloat(e.target.value) / 100) * state.audioBuffer.duration;
+    const target = e.target as HTMLInputElement;
+    const time = (parseFloat(target.value) / 100) * state.audioBuffer.duration;
     playbackState.currentPlaybackTime = time;
 
     if (playbackState.isPlaying) {
         startPlayback(time, {
             audioBuffer: state.audioBuffer,
-            audioContext: state.audioContext,
+            audioContext: state.audioContext!,
             playPauseButton: playPauseButton,
             onUpdateMarker: updateMarkerWrapper
         });
@@ -218,7 +222,7 @@ function handleSeekChange(e) {
 /**
  * Handle canvas click - seek to clicked position
  */
-function handleCanvasClick(e) {
+function handleCanvasClick(e: MouseEvent): void {
     if (!state.audioBuffer || (!state.cachedPowers && !state.cachedRGBPowers)) return;
 
     const rect = canvas.getBoundingClientRect();
@@ -242,7 +246,7 @@ function handleCanvasClick(e) {
         playbackState.currentPlaybackTime = time;
         startPlayback(time, {
             audioBuffer: state.audioBuffer,
-            audioContext: state.audioContext,
+            audioContext: state.audioContext!,
             playPauseButton: playPauseButton,
             onUpdateMarker: updateMarkerWrapper
         });
@@ -252,7 +256,7 @@ function handleCanvasClick(e) {
 /**
  * Handle window resize
  */
-function handleWindowResize() {
+function handleWindowResize(): void {
     if (state.cachedCanvasSize && playbackControls.style.display === 'block') {
         setupOverlayCanvas(canvas, markerOverlay);
         updateMarkerWrapper();
@@ -262,7 +266,9 @@ function handleWindowResize() {
 /**
  * Wrapper for updateMarker with proper parameters
  */
-function updateMarkerWrapper() {
+function updateMarkerWrapper(): void {
+    if (!state.audioBuffer || !state.audioContext) return;
+
     const zOrderOffsetBeats = parseFloat(zOrderOffsetInput.value);
     const zOrderOffset = Math.round(zOrderOffsetBeats * state.cachedSamplesPerBeat);
 
@@ -273,25 +279,23 @@ function updateMarkerWrapper() {
         markerOverlay: markerOverlay,
         cachedCanvasSize: state.cachedCanvasSize,
         seekSlider: seekSlider,
-        onGetPosition: (t) => getCanvasPositionForTime(t, {
+        onGetPosition: (t: number) => getCanvasPositionForTime(t, {
             bpm: parseFloat(bpmInput.value),
-            sampleRate: state.audioBuffer.sampleRate,
+            sampleRate: state.audioBuffer!.sampleRate,
             cachedSamplesPerBeat: state.cachedSamplesPerBeat,
             cachedCanvasSize: state.cachedCanvasSize,
             zOrderOffset: zOrderOffset,
             audioBuffer: state.audioBuffer
         }),
         onPausePlayback: () => pausePlayback({
-            audioContext: state.audioContext,
+            audioContext: state.audioContext!,
             playPauseButton: playPauseButton
         })
     });
 
     // Update time display
-    if (time !== undefined) {
-        currentTimeDisplay.textContent = formatTime(time);
-        totalTimeDisplay.textContent = formatTime(state.audioBuffer.duration);
-    }
+    currentTimeDisplay.textContent = formatTime(time);
+    totalTimeDisplay.textContent = formatTime(state.audioBuffer.duration);
 
     // Continue animation loop if playing
     if (playbackState.isPlaying) {
@@ -302,7 +306,7 @@ function updateMarkerWrapper() {
 /**
  * Main audio processing function
  */
-async function processAudio() {
+async function processAudio(): Promise<void> {
     if (state.isProcessing || !state.audioBuffer) return;
 
     state.isProcessing = true;
@@ -316,12 +320,14 @@ async function processAudio() {
     const windowSize = parseInt(windowSizeInput.value);
     const zOrderOffsetBeats = parseFloat(zOrderOffsetInput.value);
     const zOrderOffset = Math.round(zOrderOffsetBeats * samplesPerBeat);
-    const vizMode = vizModeInput.value;
+    const vizMode = vizModeInput.value as 'mono' | 'rgb';
 
     const sampleRate = state.audioBuffer.sampleRate;
 
     // Apply frequency filtering if in RGB mode
-    let audioData, filteredBands;
+    let audioData: Float32Array | undefined;
+    let filteredBands: FilteredBands | undefined;
+
     if (vizMode === 'rgb') {
         const lowMidCutoff = parseFloat(lowMidCutoffInput.value);
         const midHighCutoff = parseFloat(midHighCutoffInput.value);
@@ -330,7 +336,6 @@ async function processAudio() {
         filteredBands = await applyFrequencyFiltering(state.audioBuffer, lowMidCutoff, midHighCutoff);
         progressFill.textContent = '0%';
     } else {
-        // Get mono audio data
         audioData = state.audioBuffer.getChannelData(0);
     }
 
@@ -341,7 +346,7 @@ async function processAudio() {
     const windowIntervalSamples = windowIntervalSeconds * sampleRate;
 
     // Calculate number of windows
-    const audioLength = vizMode === 'rgb' ? filteredBands.low.length : audioData.length;
+    const audioLength = vizMode === 'rgb' ? filteredBands!.low.length : audioData!.length;
     const totalWindows = Math.floor(audioLength / windowIntervalSamples);
 
     // Calculate canvas dimensions
@@ -364,10 +369,10 @@ async function processAudio() {
     const imageData = ctx.createImageData(canvasSize, canvasSize);
 
     if (vizMode === 'mono') {
-        await processMonoMode(audioData, totalWindows, windowIntervalSamples, windowSize,
+        await processMonoMode(audioData!, totalWindows, windowIntervalSamples, windowSize,
                               zOrderOffset, canvasSize, imageData);
     } else {
-        await processRGBMode(filteredBands, totalWindows, windowIntervalSamples, windowSize,
+        await processRGBMode(filteredBands!, totalWindows, windowIntervalSamples, windowSize,
                             zOrderOffset, canvasSize, imageData);
     }
 
@@ -390,9 +395,16 @@ async function processAudio() {
 /**
  * Process audio in mono mode
  */
-async function processMonoMode(audioData, totalWindows, windowIntervalSamples, windowSize,
-                               zOrderOffset, canvasSize, imageData) {
-    const powers = [];
+async function processMonoMode(
+    audioData: Float32Array,
+    totalWindows: number,
+    windowIntervalSamples: number,
+    windowSize: number,
+    zOrderOffset: number,
+    canvasSize: number,
+    imageData: ImageData
+): Promise<void> {
+    const powers: number[] = [];
     const minPower = 0;
     const tempMaxPower = state.maxPowerMono;
 
@@ -401,7 +413,6 @@ async function processMonoMode(audioData, totalWindows, windowIntervalSamples, w
         const power = calculateRMSPower(audioData, startSample, windowSize);
         powers.push(power);
 
-        // Plot using Z-order curve with Viridis colormap
         const index = i + zOrderOffset;
         const { x, y } = getZOrderCoordinates(index, canvasSize);
 
@@ -414,7 +425,6 @@ async function processMonoMode(audioData, totalWindows, windowIntervalSamples, w
             imageData.data[pixelIndex + 3] = color[3];
         }
 
-        // Update canvas and progress every 1000 samples
         if (i % 1000 === 0) {
             ctx.putImageData(imageData, 0, 0);
             const progress = (i / totalWindows) * 100;
@@ -424,35 +434,38 @@ async function processMonoMode(audioData, totalWindows, windowIntervalSamples, w
         }
     }
 
-    // Calculate actual max power
     state.maxPowerMono = Math.max(...powers);
     if (state.maxPowerMono === 0) state.maxPowerMono = 1.0;
 
-    // Cache for instant redraw
     state.cachedPowers = powers;
     state.cachedRGBPowers = null;
     state.cachedCanvasSize = canvasSize;
     state.cachedSamplesPerBeat = parseInt(samplesPerBeatInput.value);
     state.cachedVizMode = 'mono';
 
-    // Redraw with correct normalization
     redrawCanvas(state, canvas, zOrderOffset);
 }
 
 /**
  * Process audio in RGB mode
  */
-async function processRGBMode(filteredBands, totalWindows, windowIntervalSamples, windowSize,
-                              zOrderOffset, canvasSize, imageData) {
-    const lowPowers = [];
-    const midPowers = [];
-    const highPowers = [];
+async function processRGBMode(
+    filteredBands: FilteredBands,
+    totalWindows: number,
+    windowIntervalSamples: number,
+    windowSize: number,
+    zOrderOffset: number,
+    canvasSize: number,
+    imageData: ImageData
+): Promise<void> {
+    const lowPowers: number[] = [];
+    const midPowers: number[] = [];
+    const highPowers: number[] = [];
     const tempMaxRGB = { ...state.maxPowerRGB };
 
     for (let i = 0; i < totalWindows; i++) {
         const startSample = Math.round(i * windowIntervalSamples);
 
-        // Compute RMS for each frequency band
         const lowPower = calculateRMSPower(filteredBands.low, startSample, windowSize);
         const midPower = calculateRMSPower(filteredBands.mid, startSample, windowSize);
         const highPower = calculateRMSPower(filteredBands.high, startSample, windowSize);
@@ -461,7 +474,6 @@ async function processRGBMode(filteredBands, totalWindows, windowIntervalSamples
         midPowers.push(midPower);
         highPowers.push(highPower);
 
-        // Plot using Z-order curve with RGB mapping
         const index = i + zOrderOffset;
         const { x, y } = getZOrderCoordinates(index, canvasSize);
 
@@ -477,7 +489,6 @@ async function processRGBMode(filteredBands, totalWindows, windowIntervalSamples
             imageData.data[pixelIndex + 3] = 255;
         }
 
-        // Update canvas and progress every 1000 samples
         if (i % 1000 === 0) {
             ctx.putImageData(imageData, 0, 0);
             const progress = (i / totalWindows) * 100;
@@ -487,7 +498,6 @@ async function processRGBMode(filteredBands, totalWindows, windowIntervalSamples
         }
     }
 
-    // Calculate actual max power for each band
     state.maxPowerRGB.low = Math.max(...lowPowers);
     state.maxPowerRGB.mid = Math.max(...midPowers);
     state.maxPowerRGB.high = Math.max(...highPowers);
@@ -496,13 +506,18 @@ async function processRGBMode(filteredBands, totalWindows, windowIntervalSamples
     if (state.maxPowerRGB.mid === 0) state.maxPowerRGB.mid = 1.0;
     if (state.maxPowerRGB.high === 0) state.maxPowerRGB.high = 1.0;
 
-    // Cache for instant redraw
     state.cachedRGBPowers = { low: lowPowers, mid: midPowers, high: highPowers };
     state.cachedPowers = null;
     state.cachedCanvasSize = canvasSize;
     state.cachedSamplesPerBeat = parseInt(samplesPerBeatInput.value);
     state.cachedVizMode = 'rgb';
 
-    // Redraw with correct normalization
     redrawCanvas(state, canvas, zOrderOffset);
+}
+
+// Auto-initialize when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
 }
