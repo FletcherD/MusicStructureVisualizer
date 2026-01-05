@@ -106,6 +106,7 @@
             padding: 20px;
             border-radius: 8px;
             text-align: center;
+            position: relative;
         }
 
         canvas {
@@ -144,6 +145,57 @@
 
         .info {
             margin-top: 10px;
+            color: #888;
+            font-size: 14px;
+        }
+
+        .playback-controls {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .playback-buttons {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .playback-seek {
+            margin-bottom: 10px;
+        }
+
+        #seekSlider {
+            width: 100%;
+            height: 8px;
+            background: #1a1a1a;
+            border: 1px solid #444;
+            border-radius: 4px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        #seekSlider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #3a7bc8;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        #seekSlider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: #3a7bc8;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+
+        .playback-time {
+            text-align: center;
             color: #888;
             font-size: 14px;
         }
@@ -234,6 +286,22 @@
                     <div class="progress-fill" id="progressFill">0%</div>
                 </div>
             </div>
+
+            <!-- Overlay canvas for marker (positioned absolutely over main canvas) -->
+            <canvas id="markerOverlay" style="position: absolute; pointer-events: none; border: 1px solid #444;"></canvas>
+        </div>
+
+        <!-- Playback Controls -->
+        <div class="playback-controls" id="playbackControls" style="display: none;">
+            <div class="playback-buttons">
+                <button id="playPauseButton">Play</button>
+            </div>
+            <div class="playback-seek">
+                <input type="range" id="seekSlider" min="0" max="100" value="0" step="0.01">
+            </div>
+            <div class="playback-time">
+                <span id="currentTime">0:00</span> / <span id="totalTime">0:00</span>
+            </div>
         </div>
     </div>
 
@@ -293,6 +361,219 @@
             return { x, y };
         }
 
+        // Map audio time to canvas coordinates
+        function getCanvasPositionForTime(time) {
+            if (!cachedSamplesPerBeat || !cachedCanvasSize) return null;
+
+            const bpm = parseFloat(bpmInput.value);
+            const sampleRate = audioBuffer.sampleRate;
+
+            // Calculate window interval
+            const beatsPerSecond = bpm / 60;
+            const windowsPerSecond = beatsPerSecond * cachedSamplesPerBeat;
+            const windowIntervalSeconds = 1 / windowsPerSecond;
+
+            // Convert time to window index
+            const windowIndex = Math.floor(time / windowIntervalSeconds);
+
+            // Apply Z-order offset
+            const zOrderOffsetBeats = parseFloat(zOrderOffsetInput.value);
+            const zOrderOffset = Math.round(zOrderOffsetBeats * cachedSamplesPerBeat);
+            const adjustedIndex = windowIndex + zOrderOffset;
+
+            // Get Z-order coordinates
+            const { x, y } = getZOrderCoordinates(adjustedIndex, cachedCanvasSize);
+
+            // Check bounds
+            if (x >= cachedCanvasSize || y >= cachedCanvasSize) return null;
+
+            return { x, y };
+        }
+
+        // Reverse mapping: canvas coordinates to audio time
+        function getTimeForCanvasClick(canvasX, canvasY) {
+            if (!cachedSamplesPerBeat || !cachedCanvasSize) return null;
+
+            const bpm = parseFloat(bpmInput.value);
+            const sampleRate = audioBuffer.sampleRate;
+
+            // Calculate window interval
+            const beatsPerSecond = bpm / 60;
+            const windowsPerSecond = beatsPerSecond * cachedSamplesPerBeat;
+            const windowIntervalSeconds = 1 / windowsPerSecond;
+
+            // Convert canvas coordinates to Z-order index using existing interleave function
+            const zOrderIndex = interleave(Math.floor(canvasX), Math.floor(canvasY));
+
+            // Remove Z-order offset
+            const zOrderOffsetBeats = parseFloat(zOrderOffsetInput.value);
+            const zOrderOffset = Math.round(zOrderOffsetBeats * cachedSamplesPerBeat);
+            const windowIndex = zOrderIndex - zOrderOffset;
+
+            // Convert window index to time
+            const time = windowIndex * windowIntervalSeconds;
+
+            // Clamp to valid range
+            if (time < 0 || time > audioBuffer.duration) return null;
+
+            return time;
+        }
+
+        // Start or resume audio playback
+        async function startPlayback(fromTime = 0) {
+            if (!audioBuffer || !audioContext) return;
+
+            // Resume AudioContext if suspended (browser autoplay policy)
+            if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+
+            // Stop any existing playback
+            stopPlayback();
+
+            // Create new source (AudioBufferSourceNode can only be used once)
+            audioSource = audioContext.createBufferSource();
+            audioSource.buffer = audioBuffer;
+            audioSource.connect(audioContext.destination);
+
+            // Handle playback end
+            audioSource.onended = () => {
+                if (isPlaying) {
+                    // Natural end (not user-triggered stop)
+                    isPlaying = false;
+                    playPauseButton.textContent = 'Play';
+                    currentPlaybackTime = 0;
+                    seekSlider.value = 0;
+                    updateMarker();
+                }
+            };
+
+            // Start playback from specified time
+            const duration = audioBuffer.duration - fromTime;
+            audioSource.start(0, fromTime, duration);
+
+            playbackStartTime = audioContext.currentTime;
+            playbackStartOffset = fromTime;
+            isPlaying = true;
+
+            playPauseButton.textContent = 'Pause';
+
+            // Start animation loop
+            updateMarker();
+        }
+
+        // Pause audio playback
+        function pausePlayback() {
+            if (!isPlaying) return;
+
+            // Calculate current position
+            currentPlaybackTime = playbackStartOffset + (audioContext.currentTime - playbackStartTime);
+
+            // Stop audio
+            stopPlayback();
+
+            isPlaying = false;
+            playPauseButton.textContent = 'Play';
+        }
+
+        // Stop playback (internal - cleans up resources)
+        function stopPlayback() {
+            if (audioSource) {
+                try {
+                    audioSource.stop();
+                } catch (e) {
+                    // Already stopped or never started
+                }
+                audioSource.disconnect();
+                audioSource = null;
+            }
+
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+        }
+
+        // Update marker position (called every frame while playing)
+        function updateMarker() {
+            if (!markerOverlay || !canvas) return;
+
+            // Calculate current time
+            let time;
+            if (isPlaying) {
+                time = playbackStartOffset + (audioContext.currentTime - playbackStartTime);
+
+                // Check if playback finished
+                if (time >= audioBuffer.duration) {
+                    time = audioBuffer.duration;
+                    pausePlayback();
+                }
+            } else {
+                time = currentPlaybackTime;
+            }
+
+            // Update time display and seek slider
+            updateTimeDisplay(time);
+            seekSlider.value = (time / audioBuffer.duration) * 100;
+
+            // Get canvas position
+            const position = getCanvasPositionForTime(time);
+
+            // Clear overlay
+            const markerCtx = markerOverlay.getContext('2d');
+            markerCtx.clearRect(0, 0, markerOverlay.width, markerOverlay.height);
+
+            if (position) {
+                // Draw circular marker
+                const scaleX = markerOverlay.width / cachedCanvasSize;
+                const scaleY = markerOverlay.height / cachedCanvasSize;
+                const centerX = (position.x + 0.5) * scaleX;
+                const centerY = (position.y + 0.5) * scaleY;
+                const radius = Math.max(scaleX, scaleY) * 3;
+
+                markerCtx.beginPath();
+                markerCtx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+                markerCtx.fillStyle = 'rgba(255, 255, 100, 0.4)';
+                markerCtx.fill();
+                markerCtx.strokeStyle = 'rgba(255, 255, 100, 0.8)';
+                markerCtx.lineWidth = 2;
+                markerCtx.stroke();
+            }
+
+            // Continue animation loop if playing
+            if (isPlaying) {
+                animationFrameId = requestAnimationFrame(updateMarker);
+            }
+        }
+
+        // Format seconds to MM:SS
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // Update time display elements
+        function updateTimeDisplay(time) {
+            currentTimeDisplay.textContent = formatTime(time);
+            totalTimeDisplay.textContent = formatTime(audioBuffer.duration);
+        }
+
+        // Setup overlay canvas to match main canvas
+        function setupOverlayCanvas() {
+            // Position overlay exactly over main canvas
+            markerOverlay.width = canvas.width;
+            markerOverlay.height = canvas.height;
+            markerOverlay.style.width = canvas.style.width;
+            markerOverlay.style.height = canvas.style.height;
+
+            // Calculate canvas position within parent container
+            const canvasRect = canvas.getBoundingClientRect();
+            const containerRect = canvas.parentElement.getBoundingClientRect();
+            markerOverlay.style.left = `${canvasRect.left - containerRect.left}px`;
+            markerOverlay.style.top = `${canvasRect.top - containerRect.top}px`;
+        }
+
         // Calculate RMS power of a window
         function calculateRMSPower(audioData, startSample, windowSize) {
             let sum = 0;
@@ -336,6 +617,14 @@
         let maxPowerMono = 1.0; // Max power in mono mode
         let maxPowerRGB = { low: 1.0, mid: 1.0, high: 1.0 }; // Max power per band in RGB mode
 
+        // Playback state
+        let audioSource = null;           // Current AudioBufferSourceNode (can only be used once)
+        let isPlaying = false;            // Playing/paused state
+        let playbackStartTime = 0;        // audioContext.currentTime when playback started
+        let playbackStartOffset = 0;      // Audio buffer offset (for pause/resume)
+        let animationFrameId = null;      // For canceling requestAnimationFrame
+        let currentPlaybackTime = 0;      // Current position in seconds
+
         const canvas = document.getElementById('visualizer');
         const ctx = canvas.getContext('2d');
         const progressContainer = document.getElementById('progressContainer');
@@ -353,6 +642,14 @@
         const lowMidCutoffInput = document.getElementById('lowMidCutoff');
         const midHighCutoffInput = document.getElementById('midHighCutoff');
         const processButton = document.getElementById('processButton');
+
+        // Playback control elements
+        const playbackControls = document.getElementById('playbackControls');
+        const playPauseButton = document.getElementById('playPauseButton');
+        const seekSlider = document.getElementById('seekSlider');
+        const currentTimeDisplay = document.getElementById('currentTime');
+        const totalTimeDisplay = document.getElementById('totalTime');
+        const markerOverlay = document.getElementById('markerOverlay');
 
         // Initialize audio context on user interaction
         audioFileInput.addEventListener('change', async (e) => {
@@ -376,6 +673,11 @@
         // Process button click handler
         processButton.addEventListener('click', () => {
             if (audioBuffer && !isProcessing) {
+                // Pause playback when reprocessing
+                if (isPlaying) {
+                    pausePlayback();
+                }
+                currentPlaybackTime = 0;
                 processAudio();
             }
         });
@@ -384,6 +686,9 @@
         zOrderOffsetInput.addEventListener('input', () => {
             if ((cachedPowers || cachedRGBPowers) && !isProcessing) {
                 redrawCanvas();
+                if (audioBuffer) {
+                    updateMarker(); // Update marker position for new offset
+                }
             }
         });
 
@@ -405,6 +710,52 @@
 
         lowMidCutoffInput.addEventListener('input', updateFilterDisplays);
         midHighCutoffInput.addEventListener('input', updateFilterDisplays);
+
+        // Play/Pause button handler
+        playPauseButton.addEventListener('click', () => {
+            if (!audioBuffer || (!cachedPowers && !cachedRGBPowers)) return;
+
+            if (isPlaying) {
+                pausePlayback();
+            } else {
+                startPlayback(currentPlaybackTime);
+            }
+        });
+
+        // Seek slider handler
+        seekSlider.addEventListener('input', (e) => {
+            if (!audioBuffer) return;
+
+            const time = (parseFloat(e.target.value) / 100) * audioBuffer.duration;
+            currentPlaybackTime = time;
+
+            if (isPlaying) {
+                startPlayback(time);
+            } else {
+                updateMarker();
+            }
+        });
+
+        // Canvas click handler - seek to clicked position
+        canvas.addEventListener('click', (e) => {
+            if (!audioBuffer || (!cachedPowers && !cachedRGBPowers)) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const canvasX = (e.clientX - rect.left) * scaleX;
+            const canvasY = (e.clientY - rect.top) * scaleY;
+
+            const time = getTimeForCanvasClick(canvasX, canvasY);
+
+            if (time !== null) {
+                currentPlaybackTime = time;
+                startPlayback(time);
+            }
+        });
+
+        // Add cursor pointer to show canvas is clickable
+        canvas.style.cursor = 'pointer';
 
         // Redraw canvas with current Z-order offset using cached data
         function redrawCanvas() {
@@ -706,7 +1057,21 @@
             }, 1000);
 
             isProcessing = false;
+
+            // Show playback controls after first successful process
+            playbackControls.style.display = 'block';
+            setupOverlayCanvas();
+            currentPlaybackTime = 0;
+            updateMarker();
         }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (cachedCanvasSize && playbackControls.style.display === 'block') {
+                setupOverlayCanvas();
+                updateMarker();
+            }
+        });
     </script>
 </body>
 </html>

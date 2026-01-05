@@ -170,6 +170,57 @@ const dimension = Math.pow(2, Math.ceil(Math.log2(Math.sqrt(totalWindows))));
 
 Canvas dimensions are automatically calculated as the smallest square power-of-2 that can contain all windows. This ensures efficient Z-order curve mapping.
 
+#### 8. Audio Playback and Synchronization
+The application includes synchronized audio playback with real-time visual tracking using an overlay canvas architecture.
+
+**Playback System:**
+- Uses `AudioBufferSourceNode` with the existing WebAudio API infrastructure
+- Provides precise timing via `audioContext.currentTime`
+- Sources can only be used once, so a new source is created for each play/seek operation
+
+**Visual Marker:**
+- Semi-transparent circular highlight overlaid on the visualization
+- Separate overlay canvas positioned absolutely over the main canvas
+- Updates at ~60 FPS via `requestAnimationFrame` during playback
+- Color: Yellow/gold (`rgba(255, 255, 100, 0.4)` fill with `0.8` opacity stroke)
+
+**Time ↔ Position Mapping:**
+```javascript
+// Forward: Time → Canvas Position
+function getCanvasPositionForTime(time) {
+    const windowIndex = Math.floor(time / windowIntervalSeconds);
+    const adjustedIndex = windowIndex + zOrderOffset;
+    const { x, y } = getZOrderCoordinates(adjustedIndex, canvasSize);
+    return { x, y };
+}
+
+// Reverse: Canvas Click → Time
+function getTimeForCanvasClick(canvasX, canvasY) {
+    const zOrderIndex = interleave(Math.floor(canvasX), Math.floor(canvasY));
+    const windowIndex = zOrderIndex - zOrderOffset;
+    const time = windowIndex * windowIntervalSeconds;
+    return time;
+}
+```
+
+**Synchronization Strategy:**
+- Animation loop runs continuously during playback via `requestAnimationFrame`
+- Current time calculated: `playbackStartOffset + (audioContext.currentTime - playbackStartTime)`
+- Marker position, seek slider, and time display updated each frame
+- Automatically pauses when playback reaches end of audio
+
+**Interaction Model:**
+- **Play/Pause button**: Toggle playback, resumes from current position
+- **Seek slider**: Scrub timeline, restarts playback if currently playing
+- **Canvas click**: Click any point to start playback from that position
+- **Z-order offset changes**: Marker position updates instantly, playback continues uninterrupted
+- **Parameter changes** (BPM, samples/beat, viz mode): Automatically pause playback, reset to start
+
+**Performance:**
+- Overlay canvas avoids redrawing entire visualization (~1M pixels → ~200 operations per frame)
+- Reverse mapping uses O(1) bit operations via existing `interleave()` function
+- Real-time updates have no impact on visualization processing performance
+
 ## User Interface
 
 ### Controls
@@ -230,11 +281,38 @@ Canvas dimensions are automatically calculated as the smallest square power-of-2
    - **Must click to apply** changes to BPM, Samples per Beat, Window Size, Visualization Mode, or Filter Cutoffs
    - Shows progress bar during processing (displays "Filtering..." briefly in RGB mode)
    - Z-Order Offset changes do NOT require reprocessing
+   - **Automatically pauses playback** when clicked (resets playback position to start)
+
+9. **Playback Controls** (appears after first successful processing):
+   - **Play/Pause Button**: Start or pause audio playback
+     - Resumes from current position when paused
+     - Automatically pauses when audio reaches end
+   - **Seek Slider**: Horizontal slider for scrubbing through audio
+     - Updates in real-time during playback
+     - Drag to any position to seek
+     - If playing, playback restarts from new position immediately
+   - **Time Display**: Shows current time and total duration (MM:SS format)
+     - Updates at ~60 FPS during playback
+     - Example: "1:23 / 3:45"
+   - **Visual Marker**: Semi-transparent yellow circular highlight on canvas
+     - Tracks playback position in real-time
+     - Moves smoothly across Z-order mapped visualization
+     - Visible during both playback and pause
+     - **Canvas Click to Seek**: Click anywhere on visualization to jump to that position
+       - Automatically starts playback from clicked position
+       - Uses reverse Z-order mapping to calculate time from canvas coordinates
+       - Invalid regions (outside bounds) are ignored
 
 ### Display
 
 - **Canvas**: Shows the visualization with pixel-perfect rendering (`image-rendering: pixelated`)
+  - Clickable for seeking to specific positions (cursor changes to pointer after processing)
+  - Overlay canvas renders playback marker without affecting main visualization
 - **Progress Bar**: Shows percentage completion during processing
+- **Playback Marker**: Semi-transparent yellow circle overlaid on canvas during/after playback
+  - Positioned using overlay canvas for performance
+  - Updates at ~60 FPS during playback
+  - Synchronized with audio playback position
 - **Info Line**: Displays calculated values:
   - Window interval in milliseconds
   - Canvas size (dimensions)
@@ -634,10 +712,37 @@ When updating this project:
 ---
 
 **Last Updated**: 2026-01-04
-**Version**: 1.2
+**Version**: 1.3
 **Author**: Built with Claude Code
 
 ## Changelog
+
+### Version 1.3 (2026-01-04)
+- **Major Feature**: Added synchronized audio playback with visual marker tracking
+- New playback controls appear after first successful processing:
+  - **Play/Pause button**: Toggle audio playback, resumes from current position
+  - **Seek slider**: Scrub through audio timeline with real-time updates
+  - **Time display**: Shows current/total time in MM:SS format (e.g., "1:23 / 3:45")
+  - **Visual marker**: Semi-transparent yellow circular highlight tracks playback position
+- **Canvas click to seek**: Click anywhere on visualization to jump to that position in audio
+  - Uses reverse Z-order mapping to calculate time from canvas coordinates
+  - Automatically starts playback from clicked position
+- **Overlay canvas architecture**: Marker rendered on separate transparent canvas
+  - Positioned absolutely over main canvas using `getBoundingClientRect()`
+  - Avoids redrawing entire visualization (~1M pixels → ~200 operations per frame)
+  - Updates at ~60 FPS via `requestAnimationFrame` during playback
+- **Bidirectional time ↔ position mapping**:
+  - Forward: `time → windowIndex → Z-order coordinates → canvas position`
+  - Reverse: `canvas click → Z-order index → windowIndex → time`
+  - Uses existing `interleave()` function for O(1) reverse mapping
+- **Smart playback behavior**:
+  - Z-order offset changes update marker instantly, playback continues
+  - Process button (BPM/params changes) pauses playback, resets to start
+  - Automatically pauses when audio reaches end
+  - Handles browser autoplay policy (resumes AudioContext if suspended)
+- **Synchronization**: Precise timing using `audioContext.currentTime` and `AudioBufferSourceNode`
+- **Performance**: No impact on visualization processing, real-time updates use minimal resources
+- **Window resize handling**: Overlay canvas repositions automatically on window resize
 
 ### Version 1.2 (2026-01-04)
 - **Major Feature**: Added RGB frequency visualization mode
