@@ -8,88 +8,11 @@
 </head>
 <body>
     <div class="container">
-        <h1>Audio Structure Visualizer</h1>
+        <header>
+            <h1>Audio Structure Visualizer</h1>
+        </header>
 
-        <div class="controls">
-            <div class="control-group">
-                <label for="audioFile">Audio File:</label>
-                <input type="file" id="audioFile" accept="audio/*">
-            </div>
-
-            <div class="control-group">
-                <label for="bpm">BPM:</label>
-                <input type="number" id="bpm" value="120" min="1" max="300" step="0.1">
-                <button id="detectBpm" style="margin-left: 10px;" disabled>Detect BPM</button>
-            </div>
-
-            <div class="control-group">
-                <label for="samplesPerBeat">Samples per Beat:</label>
-                <select id="samplesPerBeat">
-                    <option value="64">64</option>
-                    <option value="128">128</option>
-                    <option value="256" selected>256</option>
-                    <option value="512">512</option>
-                    <option value="1024">1024</option>
-                    <option value="2048">2048</option>
-                    <option value="4096">4096</option>
-                </select>
-            </div>
-
-            <div class="control-group">
-                <label for="windowSize">Window Size (samples):</label>
-                <select id="windowSize">
-                    <option value="128">128</option>
-                    <option value="256">256</option>
-                    <option value="512" selected>512</option>
-                    <option value="1024">1024</option>
-                    <option value="2048">2048</option>
-                    <option value="4096">4096</option>
-                </select>
-            </div>
-
-            <div class="control-group">
-                <label for="zOrderOffset">Z-Order Offset (seconds):</label>
-                <input type="number" id="zOrderOffset" value="0" step="0.001">
-                <input type="range" id="zOrderOffsetSlider" min="-2" max="2" value="0" step="0.001">
-            </div>
-
-            <div class="control-group">
-                <label for="vizMode">Visualization Mode:</label>
-                <select id="vizMode">
-                    <option value="mono">Mono (Power - Viridis)</option>
-                    <option value="rgb" selected>RGB (Frequency Bands)</option>
-                </select>
-            </div>
-
-            <details class="control-group" id="filterControlsGroup" open>
-                <summary style="font-weight: bold; cursor: pointer; margin-bottom: 10px;">Frequency Band Cutoffs</summary>
-                <div style="margin-left: 180px;">
-                    <div style="margin-bottom: 8px;">
-                        <label style="width: 120px;">Low/Mid (Hz):</label>
-                        <input type="number" id="lowMidCutoff" value="250" min="50" max="1000" step="10">
-                    </div>
-                    <div style="margin-bottom: 8px;">
-                        <label style="width: 120px;">Mid/High (Hz):</label>
-                        <input type="number" id="midHighCutoff" value="4000" min="1000" max="12000" step="100">
-                    </div>
-                    <div style="font-size: 12px; color: #888; margin-top: 5px;">
-                        Red: Low (20 - <span id="lowMidDisplay">250</span> Hz)<br>
-                        Green: Mid (<span id="lowMidDisplay2">250</span> - <span id="midHighDisplay">4000</span> Hz)<br>
-                        Blue: High (<span id="midHighDisplay2">4000</span> - 20000 Hz)
-                    </div>
-                </div>
-            </details>
-
-            <div class="control-group">
-                <button id="processButton" disabled>Process</button>
-            </div>
-
-            <div class="control-group info" id="calculatedInfo">
-                Window interval: -- ms | Canvas size: --
-            </div>
-        </div>
-
-        <div class="canvas-container">
+        <main class="canvas-section">
             <canvas id="visualizer" style="display: none;"></canvas>
 
             <div class="progress-container" id="progressContainer">
@@ -100,20 +23,125 @@
 
             <!-- Overlay canvas for marker (positioned absolutely over main canvas) -->
             <canvas id="markerOverlay" style="position: absolute; pointer-events: none; border: 1px solid #444; display: none;"></canvas>
-        </div>
+        </main>
 
         <!-- Playback Controls -->
-        <div class="playback-controls" id="playbackControls" style="display: none;">
-            <div class="playback-buttons">
-                <button id="playPauseButton">Play</button>
+        <section class="playback-section">
+            <div class="playback-controls" id="playbackControls" style="display: none;">
+                <div class="playback-buttons">
+                    <button id="playPauseButton">Play</button>
+                </div>
+                <div class="playback-seek">
+                    <input type="range" id="seekSlider" min="0" max="100" value="0" step="0.01">
+                </div>
+                <div class="playback-time">
+                    <span id="currentTime">0:00</span> / <span id="totalTime">0:00</span>
+                </div>
             </div>
-            <div class="playback-seek">
-                <input type="range" id="seekSlider" min="0" max="100" value="0" step="0.01">
+        </section>
+
+        <!-- Settings Section -->
+        <section class="settings-section">
+            <!-- Basic Settings -->
+            <details class="settings-group" id="basicSettings" open>
+                <summary>Basic Settings</summary>
+                <div class="settings-grid">
+                    <!-- Audio File -->
+                    <div class="control-row">
+                        <label for="audioFile">Audio File:</label>
+                        <input type="file" id="audioFile" accept="audio/*">
+                    </div>
+
+                    <!-- BPM with inline Detect button -->
+                    <div class="control-row">
+                        <label for="bpm">BPM:</label>
+                        <div class="control-inline">
+                            <input type="number" id="bpm" value="120" min="1" max="300" step="0.1">
+                            <button id="detectBpm" class="inline-button" disabled>Detect BPM</button>
+                        </div>
+                    </div>
+
+                    <!-- Samples per Beat -->
+                    <div class="control-row">
+                        <label for="samplesPerBeat">Samples per Beat:</label>
+                        <select id="samplesPerBeat">
+                            <option value="64">64</option>
+                            <option value="128">128</option>
+                            <option value="256" selected>256</option>
+                            <option value="512">512</option>
+                            <option value="1024">1024</option>
+                            <option value="2048">2048</option>
+                            <option value="4096">4096</option>
+                        </select>
+                    </div>
+                </div>
+            </details>
+
+            <!-- Advanced Settings -->
+            <details class="settings-group" id="advancedSettings">
+                <summary>Advanced Settings</summary>
+                <div class="settings-grid">
+                    <!-- Window Size -->
+                    <div class="control-row">
+                        <label for="windowSize">Window Size (samples):</label>
+                        <select id="windowSize">
+                            <option value="128">128</option>
+                            <option value="256">256</option>
+                            <option value="512" selected>512</option>
+                            <option value="1024">1024</option>
+                            <option value="2048">2048</option>
+                            <option value="4096">4096</option>
+                        </select>
+                    </div>
+
+                    <!-- Z-Order Offset -->
+                    <div class="control-row">
+                        <label for="zOrderOffset">Z-Order Offset (seconds):</label>
+                        <div class="zorder-controls">
+                            <input type="number" id="zOrderOffset" value="0" step="0.001">
+                            <input type="range" id="zOrderOffsetSlider" min="-2" max="2" value="0" step="0.001">
+                        </div>
+                    </div>
+
+                    <!-- Visualization Mode -->
+                    <div class="control-row">
+                        <label for="vizMode">Visualization Mode:</label>
+                        <select id="vizMode">
+                            <option value="mono">Mono (Power - Viridis)</option>
+                            <option value="rgb" selected>RGB (Frequency Bands)</option>
+                        </select>
+                    </div>
+
+                    <!-- Frequency Band Cutoffs (full width) -->
+                    <details class="control-row frequency-cutoffs" id="filterControlsGroup" open>
+                        <summary>Frequency Band Cutoffs</summary>
+                        <div class="frequency-inputs">
+                            <div class="control-row">
+                                <label for="lowMidCutoff">Low/Mid (Hz):</label>
+                                <input type="number" id="lowMidCutoff" value="250" min="50" max="1000" step="10">
+                            </div>
+                            <div class="control-row">
+                                <label for="midHighCutoff">Mid/High (Hz):</label>
+                                <input type="number" id="midHighCutoff" value="4000" min="1000" max="12000" step="100">
+                            </div>
+                            <div class="frequency-legend">
+                                Red: Low (20 - <span id="lowMidDisplay">250</span> Hz)<br>
+                                Green: Mid (<span id="lowMidDisplay2">250</span> - <span id="midHighDisplay">4000</span> Hz)<br>
+                                Blue: High (<span id="midHighDisplay2">4000</span> - 20000 Hz)
+                            </div>
+                        </div>
+                    </details>
+                </div>
+            </details>
+
+            <!-- Action Section -->
+            <div class="action-section">
+                <button id="processButton" disabled>Process</button>
+                <div class="info-display" id="calculatedInfo">
+                    Window interval: -- ms | Canvas size: --
+                </div>
             </div>
-            <div class="playback-time">
-                <span id="currentTime">0:00</span> / <span id="totalTime">0:00</span>
-            </div>
-        </div>
+        </section>
     </div>
 
     <script src="dist/app.js"></script>

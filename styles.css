@@ -1,226 +1,552 @@
+/* ============================================
+   CSS Custom Properties (Design System)
+   ============================================ */
+:root {
+  /* Colors */
+  --color-bg-primary: #1a1a1a;
+  --color-bg-secondary: #2a2a2a;
+  --color-bg-tertiary: #333;
+  --color-text-primary: #e0e0e0;
+  --color-text-secondary: #888;
+  --color-text-heading: #fff;
+  --color-border: #444;
+  --color-accent: #3a7bc8;
+  --color-accent-hover: #4a8bd8;
+  --color-accent-disabled: rgba(68, 68, 68, 0.5);
+
+  /* Spacing scale (4px base) */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 20px;
+  --space-2xl: 24px;
+  --space-3xl: 32px;
+
+  /* Sizing */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --border-width: 1px;
+
+  /* Layout */
+  --container-max-width: 1200px;
+  --settings-gap: 16px;
+}
+
+/* ============================================
+   Global Reset & Base Styles
+   ============================================ */
 * {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    padding: 20px;
-    background: #1a1a1a;
-    color: #e0e0e0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  line-height: 1.6;
+  padding: var(--space-xl);
 }
 
+/* ============================================
+   Layout Structure
+   ============================================ */
 .container {
-    max-width: 1200px;
-    margin: 0 auto;
+  max-width: var(--container-max-width);
+  margin: 0 auto;
+}
+
+header {
+  text-align: center;
+  margin-bottom: var(--space-2xl);
 }
 
 h1 {
-    margin-bottom: 20px;
-    color: #fff;
+  font-size: 1.75rem;
+  color: var(--color-text-heading);
+  font-weight: 600;
+  margin: 0;
 }
 
-.controls {
-    background: #2a2a2a;
-    padding: 20px;
-    border-radius: 8px;
-    margin-bottom: 20px;
+/* ============================================
+   Canvas Section (Hero)
+   ============================================ */
+.canvas-section {
+  position: relative;
+  margin-bottom: var(--space-3xl);
+  min-height: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.control-group {
-    margin-bottom: 15px;
+#visualizer {
+  max-width: 100%;
+  height: auto;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
 }
 
-.control-group:last-child {
-    margin-bottom: 0;
+/* Canvas marker overlay */
+#markerOverlay {
+  border-radius: var(--radius-md);
 }
 
-label {
-    display: inline-block;
-    width: 180px;
-    font-weight: 500;
-}
-
-input[type="number"],
-input[type="file"],
-select {
-    padding: 8px;
-    border: 1px solid #444;
-    border-radius: 4px;
-    background: #1a1a1a;
-    color: #e0e0e0;
-    font-size: 14px;
-}
-
-input[type="number"] {
-    width: 120px;
-}
-
-input[type="file"] {
-    width: 300px;
-}
-
-select {
-    width: 120px;
-    cursor: pointer;
-}
-
-button {
-    padding: 10px 24px;
-    border: 1px solid #444;
-    border-radius: 4px;
-    background: #3a7bc8;
-    color: #fff;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-
-button:hover {
-    background: #4a8bd8;
-}
-
-button:disabled {
-    background: #444;
-    cursor: not-allowed;
-    opacity: 0.5;
-}
-
-.value-display {
-    margin-left: 10px;
-    color: #888;
-    font-size: 13px;
-}
-
-.canvas-container {
-    background: #2a2a2a;
-    padding: 20px;
-    border-radius: 8px;
-    text-align: center;
-    position: relative;
-}
-
-canvas {
-    border: 1px solid #444;
-    max-width: 100%;
-    height: auto;
-    image-rendering: pixelated;
-}
-
+/* ============================================
+   Progress Bar
+   ============================================ */
 .progress-container {
-    margin-top: 15px;
-    display: none;
+  width: 100%;
+  max-width: 600px;
+  margin: var(--space-xl) auto;
 }
 
 .progress-bar {
-    width: 100%;
-    height: 30px;
-    background: #1a1a1a;
-    border-radius: 4px;
-    overflow: hidden;
-    border: 1px solid #444;
+  width: 100%;
+  height: 30px;
+  background: var(--color-bg-secondary);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
 }
 
 .progress-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #440154, #21918c, #fde724);
-    width: 0%;
-    transition: width 0.1s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #fff;
-    font-weight: bold;
-    font-size: 14px;
+  height: 100%;
+  background: linear-gradient(90deg, #440154, #21918c, #fde724);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-heading);
+  font-weight: bold;
+  font-size: 0.875rem;
+  transition: width 0.1s ease-out;
+  min-width: fit-content;
+  padding: 0 var(--space-sm);
 }
 
-.info {
-    margin-top: 10px;
-    color: #888;
-    font-size: 14px;
+/* ============================================
+   Playback Controls
+   ============================================ */
+.playback-section {
+  margin-bottom: var(--space-3xl);
 }
 
 .playback-controls {
-    background: #2a2a2a;
-    padding: 20px;
-    border-radius: 8px;
-    margin-top: 20px;
+  background: var(--color-bg-secondary);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
 }
 
 .playback-buttons {
-    text-align: center;
-    margin-bottom: 15px;
+  display: flex;
+  justify-content: center;
+}
+
+.playback-buttons button {
+  padding: var(--space-md) var(--space-3xl);
+  font-size: 1rem;
+  font-weight: 600;
 }
 
 .playback-seek {
-    margin-bottom: 10px;
+  width: 100%;
 }
 
-#seekSlider {
-    width: 100%;
-    height: 8px;
-    background: #1a1a1a;
-    border: 1px solid #444;
-    border-radius: 4px;
-    outline: none;
-    cursor: pointer;
-}
-
-#seekSlider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 16px;
-    height: 16px;
-    background: #3a7bc8;
-    border-radius: 50%;
-    cursor: pointer;
-}
-
-#seekSlider::-moz-range-thumb {
-    width: 16px;
-    height: 16px;
-    background: #3a7bc8;
-    border-radius: 50%;
-    cursor: pointer;
-    border: none;
+.playback-seek input[type="range"] {
+  width: 100%;
 }
 
 .playback-time {
-    text-align: center;
-    color: #888;
-    font-size: 14px;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  font-family: 'Courier New', monospace;
 }
 
-/* Z-order offset slider */
-#zOrderOffsetSlider {
-    width: 300px;
-    height: 6px;
-    background: #1a1a1a;
-    border: 1px solid #444;
-    border-radius: 4px;
-    outline: none;
-    cursor: pointer;
-    margin-left: 10px;
-    vertical-align: middle;
+/* ============================================
+   Settings Section
+   ============================================ */
+.settings-section {
+  margin-top: var(--space-3xl);
 }
 
-#zOrderOffsetSlider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 14px;
-    height: 14px;
-    background: #3a7bc8;
-    border-radius: 50%;
-    cursor: pointer;
+.settings-group {
+  background: var(--color-bg-secondary);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-xl);
+  margin-bottom: var(--space-lg);
 }
 
-#zOrderOffsetSlider::-moz-range-thumb {
-    width: 14px;
-    height: 14px;
-    background: #3a7bc8;
-    border-radius: 50%;
-    cursor: pointer;
-    border: none;
+.settings-group summary {
+  font-weight: bold;
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: var(--space-sm) 0;
+  user-select: none;
+  list-style-position: outside;
+  transition: color 0.2s;
+}
+
+.settings-group summary:hover {
+  color: var(--color-accent);
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--settings-gap);
+  margin-top: var(--space-lg);
+}
+
+/* ============================================
+   Control Rows (Form Elements)
+   ============================================ */
+.control-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.control-row label {
+  font-size: 0.9rem;
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+.control-row input[type="number"],
+.control-row input[type="file"],
+.control-row select {
+  width: 100%;
+  padding: var(--space-sm);
+  background: var(--color-bg-primary);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+
+.control-row input[type="file"] {
+  cursor: pointer;
+}
+
+.control-row input[type="file"]::-webkit-file-upload-button {
+  background: var(--color-accent);
+  color: var(--color-text-heading);
+  border: none;
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  margin-right: var(--space-sm);
+  transition: background 0.2s;
+}
+
+.control-row input[type="file"]::-webkit-file-upload-button:hover {
+  background: var(--color-accent-hover);
+}
+
+.control-row select {
+  cursor: pointer;
+}
+
+.control-row input:focus,
+.control-row select:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* ============================================
+   Inline Controls (BPM + Detect button)
+   ============================================ */
+.control-inline {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.control-inline input {
+  flex: 1;
+}
+
+.inline-button {
+  white-space: nowrap;
+  padding: var(--space-sm) var(--space-lg);
+  flex-shrink: 0;
+}
+
+/* ============================================
+   Z-Order Offset Controls
+   ============================================ */
+.zorder-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.zorder-controls input[type="number"] {
+  width: 100%;
+}
+
+.zorder-controls input[type="range"] {
+  width: 100%;
+  margin-top: var(--space-xs);
+}
+
+/* ============================================
+   Frequency Cutoffs (nested details)
+   ============================================ */
+.frequency-cutoffs {
+  grid-column: 1 / -1; /* Span full width in grid */
+  background: var(--color-bg-tertiary);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-lg);
+  margin-top: var(--space-md);
+}
+
+.frequency-cutoffs summary {
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: var(--space-xs) 0;
+  user-select: none;
+}
+
+.frequency-cutoffs summary:hover {
+  color: var(--color-accent);
+}
+
+.frequency-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+}
+
+.frequency-legend {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin-top: var(--space-sm);
+  padding: var(--space-sm);
+  background: var(--color-bg-primary);
+  border-radius: var(--radius-sm);
+}
+
+/* ============================================
+   Action Section (Process button)
+   ============================================ */
+.action-section {
+  text-align: center;
+  margin-top: var(--space-2xl);
+}
+
+#processButton {
+  width: 100%;
+  max-width: 400px;
+  padding: var(--space-lg) var(--space-3xl);
+  font-size: 1.1rem;
+  font-weight: bold;
+  background: var(--color-accent);
+  color: var(--color-text-heading);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+#processButton:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+
+#processButton:disabled {
+  background: var(--color-accent-disabled);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.info-display {
+  margin-top: var(--space-lg);
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+}
+
+/* ============================================
+   Buttons (General)
+   ============================================ */
+button {
+  background: var(--color-accent);
+  color: var(--color-text-heading);
+  border: none;
+  padding: var(--space-sm) var(--space-xl);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-family: inherit;
+  transition: background 0.2s;
+}
+
+button:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+
+button:disabled {
+  background: var(--color-accent-disabled);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+button:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* ============================================
+   Range Sliders (Custom styling)
+   ============================================ */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  background: var(--color-bg-tertiary);
+  border-radius: 3px;
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: var(--color-accent);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  background: var(--color-accent-hover);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: var(--color-accent);
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+  transition: background 0.2s;
+}
+
+input[type="range"]::-moz-range-thumb:hover {
+  background: var(--color-accent-hover);
+}
+
+input[type="range"]:focus::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px rgba(58, 123, 200, 0.3);
+}
+
+input[type="range"]:focus::-moz-range-thumb {
+  box-shadow: 0 0 0 3px rgba(58, 123, 200, 0.3);
+}
+
+/* ============================================
+   Responsive Design - Tablet
+   ============================================ */
+@media (max-width: 1199px) {
+  .settings-grid {
+    grid-template-columns: 1fr 1fr; /* Still 2 columns */
+    gap: var(--space-md);
+  }
+}
+
+/* ============================================
+   Responsive Design - Mobile
+   ============================================ */
+@media (max-width: 767px) {
+  body {
+    padding: var(--space-md);
+  }
+
+  h1 {
+    font-size: 1.5rem;
+  }
+
+  .canvas-section {
+    min-height: 300px;
+  }
+
+  .settings-grid {
+    grid-template-columns: 1fr; /* Single column */
+    gap: var(--space-md);
+  }
+
+  .control-inline {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .inline-button {
+    width: 100%;
+  }
+
+  /* Touch-friendly sizes */
+  input,
+  select,
+  button {
+    min-height: 44px; /* iOS recommended touch target */
+    font-size: 16px; /* Prevents iOS zoom on focus */
+  }
+
+  .settings-group {
+    padding: var(--space-lg);
+  }
+
+  .playback-controls {
+    padding: var(--space-lg);
+  }
+
+  .frequency-cutoffs {
+    padding: var(--space-md);
+  }
+}
+
+/* ============================================
+   Accessibility
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Focus visible for keyboard navigation */
+*:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* ============================================
+   Print Styles
+   ============================================ */
+@media print {
+  .settings-section,
+  .playback-controls {
+    display: none;
+  }
+
+  .canvas-section {
+    page-break-inside: avoid;
+  }
 }
