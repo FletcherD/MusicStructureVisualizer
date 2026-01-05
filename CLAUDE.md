@@ -213,13 +213,22 @@ Color interpretation in RGB mode:
 - **Black**: Silence or very low energy
 
 ### 7. Canvas Auto-Sizing
-Canvas dimensions are automatically calculated as the smallest square power-of-2 that can contain all windows:
+Canvas dimensions are automatically calculated to use the minimal rectangular size that can contain all windows on the Z-order curve:
 
 ```javascript
-const dimension = Math.pow(2, Math.ceil(Math.log2(Math.sqrt(totalWindows))));
+const totalBits = Math.ceil(Math.log2(totalWindows));
+const xBits = Math.ceil(totalBits / 2);
+const yBits = Math.floor(totalBits / 2);
+const canvasWidth = Math.pow(2, xBits);
+const canvasHeight = Math.pow(2, yBits);
 ```
 
-This ensures efficient Z-order curve mapping and clean visualization boundaries.
+This calculation distributes bits between width and height, with the extra bit going to width. Examples:
+- 8 windows → 4×2 canvas (not 4×4)
+- 32 windows → 8×4 canvas (not 8×8)
+- 16 windows → 4×4 canvas (square when power-of-4)
+
+This ensures efficient Z-order curve mapping while minimizing unused pixels.
 
 ### 8. Audio Playback and Synchronization
 The application includes synchronized audio playback with real-time visual tracking using an overlay canvas architecture.
@@ -498,6 +507,6 @@ Depends on browser, typically:
 
 ---
 
-**Last Updated**: 2026-01-04
-**Version**: 3.4 (Canvas-focused UI redesign: canvas as hero element, settings below in collapsible sections, CSS Grid layout, renamed Z-Order Offset to Offset)
+**Last Updated**: 2026-01-05
+**Version**: 3.5 (Optimized canvas sizing: Z-order curve now uses minimal rectangular dimensions instead of square, reducing unused pixels)
 **Author**: Built with Claude Code

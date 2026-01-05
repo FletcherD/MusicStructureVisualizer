@@ -18,7 +18,8 @@ const state: AppState = {
     isProcessing: false,
     cachedPowers: null,
     cachedRGBPowers: null,
-    cachedCanvasSize: 0,
+    cachedCanvasWidth: 0,
+    cachedCanvasHeight: 0,
     cachedSamplesPerBeat: 0,
     cachedVizMode: 'mono',
     maxPowerMono: 1.0,
@@ -370,7 +371,7 @@ function handleCanvasClick(e: MouseEvent): void {
  * Handle window resize
  */
 function handleWindowResize(): void {
-    if (state.cachedCanvasSize && playbackControls.style.display === 'block') {
+    if (state.cachedCanvasWidth && playbackControls.style.display === 'block') {
         setupOverlayCanvas(canvas, markerOverlay);
         updateMarkerWrapper();
     }
@@ -393,13 +394,15 @@ function updateMarkerWrapper(): void {
         audioContext: state.audioContext,
         canvas: canvas,
         markerOverlay: markerOverlay,
-        cachedCanvasSize: state.cachedCanvasSize,
+        cachedCanvasWidth: state.cachedCanvasWidth,
+        cachedCanvasHeight: state.cachedCanvasHeight,
         seekSlider: seekSlider,
         onGetPosition: (t: number) => getCanvasPositionForTime(t, {
             bpm: bpm,
             sampleRate: state.audioBuffer!.sampleRate,
             cachedSamplesPerBeat: state.cachedSamplesPerBeat,
-            cachedCanvasSize: state.cachedCanvasSize,
+            cachedCanvasWidth: state.cachedCanvasWidth,
+            cachedCanvasHeight: state.cachedCanvasHeight,
             zOrderOffset: zOrderOffset,
             audioBuffer: state.audioBuffer
         }),
@@ -467,31 +470,45 @@ async function processAudio(): Promise<void> {
     const audioLength = vizMode === 'rgb' ? filteredBands!.low.length : audioData!.length;
     const totalWindows = Math.floor(audioLength / windowIntervalSamples);
 
-    // Calculate canvas dimensions
-    const dimension = Math.pow(2, Math.ceil(Math.log2(Math.sqrt(totalWindows))));
-    const canvasSize = dimension;
+    // Calculate canvas dimensions using optimal Z-order curve sizing
+    // Z-order curves don't always fill a square - we can use a rectangle
+    const totalBits = Math.ceil(Math.log2(totalWindows));
+    const xBits = Math.ceil(totalBits / 2);
+    const yBits = Math.floor(totalBits / 2);
+    const canvasWidth = Math.pow(2, xBits);
+    const canvasHeight = Math.pow(2, yBits);
 
     // Update info
-    calculatedInfo.textContent = `Window interval: ${(windowIntervalSeconds * 1000).toFixed(4)} ms | Canvas size: ${canvasSize}x${canvasSize} | Total windows: ${totalWindows}`;
+    calculatedInfo.textContent = `Window interval: ${(windowIntervalSeconds * 1000).toFixed(4)} ms | Canvas size: ${canvasWidth}x${canvasHeight} | Total windows: ${totalWindows}`;
 
     // Setup canvas
-    canvas.width = canvasSize;
-    canvas.height = canvasSize;
-    canvas.style.width = `${Math.min(800, canvasSize)}px`;
-    canvas.style.height = `${Math.min(800, canvasSize)}px`;
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+    const maxDisplaySize = 800;
+    const aspectRatio = canvasWidth / canvasHeight;
+    let displayWidth, displayHeight;
+    if (aspectRatio >= 1) {
+        displayWidth = Math.min(maxDisplaySize, canvasWidth);
+        displayHeight = displayWidth / aspectRatio;
+    } else {
+        displayHeight = Math.min(maxDisplaySize, canvasHeight);
+        displayWidth = displayHeight * aspectRatio;
+    }
+    canvas.style.width = `${displayWidth}px`;
+    canvas.style.height = `${displayHeight}px`;
 
     // Clear canvas
     ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, canvasSize, canvasSize);
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-    const imageData = ctx.createImageData(canvasSize, canvasSize);
+    const imageData = ctx.createImageData(canvasWidth, canvasHeight);
 
     if (vizMode === 'mono') {
         await processMonoMode(audioData!, totalWindows, windowIntervalSamples, windowSize,
-                              zOrderOffset, canvasSize, imageData);
+                              zOrderOffset, canvasWidth, canvasHeight, imageData);
     } else {
         await processRGBMode(filteredBands!, totalWindows, windowIntervalSamples, windowSize,
-                            zOrderOffset, canvasSize, imageData);
+                            zOrderOffset, canvasWidth, canvasHeight, imageData);
     }
 
     progressFill.style.width = '100%';
@@ -520,7 +537,8 @@ async function processMonoMode(
     windowIntervalSamples: number,
     windowSize: number,
     zOrderOffset: number,
-    canvasSize: number,
+    canvasWidth: number,
+    canvasHeight: number,
     imageData: ImageData
 ): Promise<void> {
     const powers: number[] = [];
@@ -533,11 +551,11 @@ async function processMonoMode(
         powers.push(power);
 
         const index = i + zOrderOffset;
-        const { x, y } = getZOrderCoordinates(index, canvasSize);
+        const { x, y } = getZOrderCoordinates(index, canvasWidth);
 
-        if (x < canvasSize && y < canvasSize) {
+        if (x < canvasWidth && y < canvasHeight) {
             const color = powerToColor(power, minPower, tempMaxPower);
-            const pixelIndex = (y * canvasSize + x) * 4;
+            const pixelIndex = (y * canvasWidth + x) * 4;
             imageData.data[pixelIndex] = color[0];
             imageData.data[pixelIndex + 1] = color[1];
             imageData.data[pixelIndex + 2] = color[2];
@@ -558,7 +576,8 @@ async function processMonoMode(
 
     state.cachedPowers = powers;
     state.cachedRGBPowers = null;
-    state.cachedCanvasSize = canvasSize;
+    state.cachedCanvasWidth = canvasWidth;
+    state.cachedCanvasHeight = canvasHeight;
     state.cachedSamplesPerBeat = parseInt(samplesPerBeatInput.value);
     state.cachedVizMode = 'mono';
 
@@ -574,7 +593,8 @@ async function processRGBMode(
     windowIntervalSamples: number,
     windowSize: number,
     zOrderOffset: number,
-    canvasSize: number,
+    canvasWidth: number,
+    canvasHeight: number,
     imageData: ImageData
 ): Promise<void> {
     const lowPowers: number[] = [];
@@ -594,10 +614,10 @@ async function processRGBMode(
         highPowers.push(highPower);
 
         const index = i + zOrderOffset;
-        const { x, y } = getZOrderCoordinates(index, canvasSize);
+        const { x, y } = getZOrderCoordinates(index, canvasWidth);
 
-        if (x < canvasSize && y < canvasSize) {
-            const pixelIndex = (y * canvasSize + x) * 4;
+        if (x < canvasWidth && y < canvasHeight) {
+            const pixelIndex = (y * canvasWidth + x) * 4;
             const normalizedLow = Math.min(1, lowPower / tempMaxRGB.low);
             const normalizedMid = Math.min(1, midPower / tempMaxRGB.mid);
             const normalizedHigh = Math.min(1, highPower / tempMaxRGB.high);
@@ -627,7 +647,8 @@ async function processRGBMode(
 
     state.cachedRGBPowers = { low: lowPowers, mid: midPowers, high: highPowers };
     state.cachedPowers = null;
-    state.cachedCanvasSize = canvasSize;
+    state.cachedCanvasWidth = canvasWidth;
+    state.cachedCanvasHeight = canvasHeight;
     state.cachedSamplesPerBeat = parseInt(samplesPerBeatInput.value);
     state.cachedVizMode = 'rgb';
 

@@ -29,9 +29,9 @@ export const playbackState: PlaybackState = {
  * @returns Canvas position or null if out of bounds
  */
 export function getCanvasPositionForTime(time: number, params: PositionParams): Coordinates | null {
-    const { bpm, sampleRate, cachedSamplesPerBeat, cachedCanvasSize, zOrderOffset } = params;
+    const { bpm, sampleRate, cachedSamplesPerBeat, cachedCanvasWidth, cachedCanvasHeight, zOrderOffset } = params;
 
-    if (!cachedSamplesPerBeat || !cachedCanvasSize) return null;
+    if (!cachedSamplesPerBeat || !cachedCanvasWidth) return null;
 
     // Calculate window interval
     const beatsPerSecond = bpm / 60;
@@ -45,10 +45,10 @@ export function getCanvasPositionForTime(time: number, params: PositionParams): 
     const adjustedIndex = windowIndex + zOrderOffset;
 
     // Get Z-order coordinates
-    const { x, y } = getZOrderCoordinates(adjustedIndex, cachedCanvasSize);
+    const { x, y } = getZOrderCoordinates(adjustedIndex, cachedCanvasWidth);
 
     // Check bounds
-    if (x >= cachedCanvasSize || y >= cachedCanvasSize) return null;
+    if (x >= cachedCanvasWidth || y >= cachedCanvasHeight) return null;
 
     return { x, y };
 }
@@ -181,7 +181,7 @@ export function stopPlayback(): void {
  * @returns Current time in seconds
  */
 export function updateMarker(params: MarkerParams): number {
-    const { audioBuffer, audioContext, canvas, markerOverlay, cachedCanvasSize,
+    const { audioBuffer, audioContext, canvas, markerOverlay, cachedCanvasWidth, cachedCanvasHeight,
             seekSlider, onGetPosition, onPausePlayback } = params;
 
     if (!markerOverlay || !canvas) return 0;
@@ -217,8 +217,8 @@ export function updateMarker(params: MarkerParams): number {
 
     if (position) {
         // Draw circular marker
-        const scaleX = markerOverlay.width / cachedCanvasSize;
-        const scaleY = markerOverlay.height / cachedCanvasSize;
+        const scaleX = markerOverlay.width / cachedCanvasWidth;
+        const scaleY = markerOverlay.height / cachedCanvasHeight;
         const centerX = (position.x + 0.5) * scaleX;
         const centerY = (position.y + 0.5) * scaleY;
         const radius = Math.max(scaleX, scaleY) * 3;

@@ -32,7 +32,7 @@ export function powerToColor(power: number, minPower: number, maxPower: number):
  * @param zOrderOffset - Z-order offset in samples
  */
 export function redrawCanvas(state: AppState, canvas: HTMLCanvasElement, zOrderOffset: number): void {
-    const { cachedPowers, cachedRGBPowers, cachedCanvasSize, cachedVizMode, maxPowerMono, maxPowerRGB } = state;
+    const { cachedPowers, cachedRGBPowers, cachedCanvasWidth, cachedCanvasHeight, cachedVizMode, maxPowerMono, maxPowerRGB } = state;
 
     if (!cachedPowers && !cachedRGBPowers) return;
 
@@ -40,7 +40,7 @@ export function redrawCanvas(state: AppState, canvas: HTMLCanvasElement, zOrderO
     if (!ctx) return;
 
     // Create new image data
-    const imageData = ctx.createImageData(cachedCanvasSize, cachedCanvasSize);
+    const imageData = ctx.createImageData(cachedCanvasWidth, cachedCanvasHeight);
 
     // Clear to black
     for (let i = 0; i < imageData.data.length; i += 4) {
@@ -54,11 +54,11 @@ export function redrawCanvas(state: AppState, canvas: HTMLCanvasElement, zOrderO
 
         for (let i = 0; i < cachedPowers.length; i++) {
             const index = i + zOrderOffset;
-            const { x, y } = getZOrderCoordinates(index, cachedCanvasSize);
+            const { x, y } = getZOrderCoordinates(index, cachedCanvasWidth);
 
-            if (x < cachedCanvasSize && y < cachedCanvasSize) {
+            if (x < cachedCanvasWidth && y < cachedCanvasHeight) {
                 const color = powerToColor(cachedPowers[i], minPower, maxPower);
-                const pixelIndex = (y * cachedCanvasSize + x) * 4;
+                const pixelIndex = (y * cachedCanvasWidth + x) * 4;
                 imageData.data[pixelIndex] = color[0];
                 imageData.data[pixelIndex + 1] = color[1];
                 imageData.data[pixelIndex + 2] = color[2];
@@ -69,10 +69,10 @@ export function redrawCanvas(state: AppState, canvas: HTMLCanvasElement, zOrderO
         // RGB mode: Map frequency bands to RGB channels with normalization
         for (let i = 0; i < cachedRGBPowers.low.length; i++) {
             const index = i + zOrderOffset;
-            const { x, y } = getZOrderCoordinates(index, cachedCanvasSize);
+            const { x, y } = getZOrderCoordinates(index, cachedCanvasWidth);
 
-            if (x < cachedCanvasSize && y < cachedCanvasSize) {
-                const pixelIndex = (y * cachedCanvasSize + x) * 4;
+            if (x < cachedCanvasWidth && y < cachedCanvasHeight) {
+                const pixelIndex = (y * cachedCanvasWidth + x) * 4;
                 // Normalize each band by its max power, then scale to 0-255
                 const normalizedLow = Math.min(1, cachedRGBPowers.low[i] / maxPowerRGB.low);
                 const normalizedMid = Math.min(1, cachedRGBPowers.mid[i] / maxPowerRGB.mid);

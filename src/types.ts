@@ -36,7 +36,8 @@ export interface AppState {
     isProcessing: boolean;
     cachedPowers: number[] | null;
     cachedRGBPowers: RGBPowers | null;
-    cachedCanvasSize: number;
+    cachedCanvasWidth: number;
+    cachedCanvasHeight: number;
     cachedSamplesPerBeat: number;
     cachedVizMode: 'mono' | 'rgb';
     maxPowerMono: number;
@@ -70,7 +71,8 @@ export interface PositionParams {
     bpm: number;
     sampleRate: number;
     cachedSamplesPerBeat: number;
-    cachedCanvasSize: number;
+    cachedCanvasWidth: number;
+    cachedCanvasHeight: number;
     zOrderOffset: number;
     audioBuffer?: AudioBuffer;
 }
@@ -112,7 +114,8 @@ export interface MarkerParams {
     audioContext: AudioContext;
     canvas: HTMLCanvasElement;
     markerOverlay: HTMLCanvasElement;
-    cachedCanvasSize: number;
+    cachedCanvasWidth: number;
+    cachedCanvasHeight: number;
     seekSlider: HTMLInputElement | null;
     onGetPosition: (time: number) => Coordinates | null;
     onPausePlayback: () => void;
