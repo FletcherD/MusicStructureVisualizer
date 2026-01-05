@@ -118,6 +118,9 @@ npm run serve
 - `processAudio(): Promise<void>`: Main processing pipeline
 - `processMonoMode(...)`: Mono visualization processing
 - `processRGBMode(...)`: RGB frequency visualization processing
+- `handleZOrderOffsetInputChange()`: Syncs number input changes to slider
+- `handleZOrderOffsetSliderChange()`: Syncs slider changes to number input
+- `updateVisualizationWithOffset()`: Performs instant redraw with new offset
 
 ## Technical Implementation
 
@@ -266,7 +269,10 @@ The application includes synchronized audio playback with real-time visual track
    - Larger = smoother but less precise
 
 5. **Z-Order Offset** (beats):
-   - Range: Any value (positive or negative), default: 0
+   - **Number Input**: Any value (positive or negative), default: 0
+   - **Slider**: Range -4 to +4 beats with 0.01 step precision (high precision adjustment)
+   - Both controls are synchronized - changing one updates the other
+   - Number input can accept values outside slider range for extreme offsets
    - Shifts visualization start point along Z-order curve
    - **Instant redraw** - no reprocessing required, uses cached power data
    - Useful for exploring different visual starting points
@@ -338,6 +344,9 @@ Appear after first successful processing:
 ### Z-Order Offset
 - Shifts "starting position" in visualization (measured in beats)
 - **Instant updates** - no reprocessing required
+- **Dual control system**:
+  - Number input: For precise values or extreme offsets outside slider range
+  - Slider (-4 to +4 beats): For quick, smooth exploration with 0.01 precision
 - Try multiples of 4 or 8 beats to align with musical phrases
 - Supports negative values to shift backward
 
@@ -479,5 +488,5 @@ Depends on browser, typically:
 ---
 
 **Last Updated**: 2026-01-04
-**Version**: 3.0 (TypeScript + esbuild)
+**Version**: 3.1 (Added Z-order offset slider)
 **Author**: Built with Claude Code

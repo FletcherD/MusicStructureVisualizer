@@ -36,6 +36,7 @@ let bpmInput: HTMLInputElement;
 let samplesPerBeatInput: HTMLSelectElement;
 let windowSizeInput: HTMLInputElement;
 let zOrderOffsetInput: HTMLInputElement;
+let zOrderOffsetSlider: HTMLInputElement;
 let vizModeInput: HTMLSelectElement;
 let filterControlsGroup: HTMLElement;
 let lowMidCutoffInput: HTMLInputElement;
@@ -66,6 +67,7 @@ export function init(): void {
     samplesPerBeatInput = document.getElementById('samplesPerBeat') as HTMLSelectElement;
     windowSizeInput = document.getElementById('windowSize') as HTMLInputElement;
     zOrderOffsetInput = document.getElementById('zOrderOffset') as HTMLInputElement;
+    zOrderOffsetSlider = document.getElementById('zOrderOffsetSlider') as HTMLInputElement;
     vizModeInput = document.getElementById('vizMode') as HTMLSelectElement;
     filterControlsGroup = document.getElementById('filterControlsGroup')!;
     lowMidCutoffInput = document.getElementById('lowMidCutoff') as HTMLInputElement;
@@ -93,7 +95,8 @@ export function init(): void {
 function setupEventListeners(): void {
     audioFileInput.addEventListener('change', handleAudioFileChange);
     processButton.addEventListener('click', handleProcessClick);
-    zOrderOffsetInput.addEventListener('input', handleZOrderOffsetChange);
+    zOrderOffsetInput.addEventListener('input', handleZOrderOffsetInputChange);
+    zOrderOffsetSlider.addEventListener('input', handleZOrderOffsetSliderChange);
     vizModeInput.addEventListener('change', handleVizModeChange);
     lowMidCutoffInput.addEventListener('input', updateFilterDisplays);
     midHighCutoffInput.addEventListener('input', updateFilterDisplays);
@@ -142,9 +145,30 @@ function handleProcessClick(): void {
 }
 
 /**
- * Handle Z-order offset change - instant redraw
+ * Handle Z-order offset number input change - update slider and redraw
  */
-function handleZOrderOffsetChange(): void {
+function handleZOrderOffsetInputChange(): void {
+    const value = parseFloat(zOrderOffsetInput.value);
+    // Update slider if value is within slider range
+    if (value >= -4 && value <= 4) {
+        zOrderOffsetSlider.value = value.toString();
+    }
+    updateVisualizationWithOffset();
+}
+
+/**
+ * Handle Z-order offset slider change - update number input and redraw
+ */
+function handleZOrderOffsetSliderChange(): void {
+    const value = parseFloat(zOrderOffsetSlider.value);
+    zOrderOffsetInput.value = value.toFixed(2);
+    updateVisualizationWithOffset();
+}
+
+/**
+ * Update visualization with current Z-order offset - instant redraw
+ */
+function updateVisualizationWithOffset(): void {
     if ((state.cachedPowers || state.cachedRGBPowers) && !state.isProcessing) {
         const zOrderOffsetBeats = parseFloat(zOrderOffsetInput.value);
         const zOrderOffset = Math.round(zOrderOffsetBeats * state.cachedSamplesPerBeat);
