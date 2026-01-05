@@ -141,23 +141,25 @@ h1 {
   gap: var(--space-lg);
 }
 
-.playback-buttons {
+.playback-main {
   display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+}
+
+.playback-main button {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
   justify-content: center;
 }
 
-.playback-buttons button {
-  padding: var(--space-md) var(--space-3xl);
-  font-size: 1rem;
-  font-weight: 600;
-}
-
-.playback-seek {
-  width: 100%;
-}
-
-.playback-seek input[type="range"] {
-  width: 100%;
+.playback-main input[type="range"] {
+  flex: 1;
 }
 
 .playback-time {

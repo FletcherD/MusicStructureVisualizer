@@ -113,7 +113,7 @@ export async function startPlayback(fromTime: number, params: PlaybackParams): P
         if (playbackState.isPlaying) {
             // Natural end (not user-triggered stop)
             playbackState.isPlaying = false;
-            playPauseButton.textContent = 'Play';
+            playPauseButton.textContent = '▶';
             playbackState.currentPlaybackTime = 0;
             if (onUpdateMarker) onUpdateMarker();
         }
@@ -127,7 +127,7 @@ export async function startPlayback(fromTime: number, params: PlaybackParams): P
     playbackState.playbackStartOffset = fromTime;
     playbackState.isPlaying = true;
 
-    playPauseButton.textContent = 'Pause';
+    playPauseButton.textContent = '⏸';
 
     // Start animation loop
     if (onUpdateMarker) onUpdateMarker();
@@ -150,7 +150,7 @@ export function pausePlayback(params: PauseParams): void {
     stopPlayback();
 
     playbackState.isPlaying = false;
-    playPauseButton.textContent = 'Play';
+    playPauseButton.textContent = '▶';
 }
 
 /**

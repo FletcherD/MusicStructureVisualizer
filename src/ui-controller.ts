@@ -121,6 +121,28 @@ async function handleAudioFileChange(e: Event): Promise<void> {
     const file = target.files?.[0];
     if (!file) return;
 
+    // Immediately disable all controls
+    processButton.disabled = true;
+    detectBpmButton.disabled = true;
+    if (playbackState.isPlaying && state.audioContext) {
+        pausePlayback({
+            audioContext: state.audioContext,
+            playPauseButton: playPauseButton
+        });
+    }
+    playPauseButton.disabled = true;
+
+    // Show loading indication
+    calculatedInfo.textContent = `Loading ${file.name}...`;
+    calculatedInfo.style.color = 'var(--color-accent)';
+
+    // Clear previous data
+    state.audioBuffer = null;
+    state.cachedPowers = null;
+    state.cachedRGBPowers = null;
+    playbackControls.style.display = 'none';
+    canvas.style.display = 'none';
+
     if (!state.audioContext) {
         state.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
@@ -128,11 +150,26 @@ async function handleAudioFileChange(e: Event): Promise<void> {
     try {
         const arrayBuffer = await file.arrayBuffer();
         state.audioBuffer = await state.audioContext.decodeAudioData(arrayBuffer);
+
+        // Re-enable controls
         processButton.disabled = false;
         detectBpmButton.disabled = false;
+
+        // Reset info display
+        calculatedInfo.textContent = 'Window interval: -- ms | Canvas size: --';
+        calculatedInfo.style.color = '';
+
+        // Automatically detect BPM
+        await handleDetectBpmClick();
     } catch (error) {
         console.error('Error loading audio:', error);
         alert('Error loading audio file. Please try another file.');
+
+        // Reset UI on error
+        calculatedInfo.textContent = 'Error loading file';
+        calculatedInfo.style.color = '#ff4444';
+        processButton.disabled = true;
+        detectBpmButton.disabled = true;
     }
 }
 
@@ -149,7 +186,7 @@ async function handleDetectBpmClick(): Promise<void> {
         const { bpm, offset, tempo } = await BeatDetector.guess(state.audioBuffer);
 
         // Update BPM input
-        bpmInput.value = tempo.toFixed(2);
+        bpmInput.value = tempo.toFixed(1);
 
         // Update z-order offset input (offset is in seconds from the library)
         zOrderOffsetInput.value = offset.toFixed(3);
@@ -468,6 +505,7 @@ async function processAudio(): Promise<void> {
 
     // Show playback controls after first successful process
     playbackControls.style.display = 'block';
+    playPauseButton.disabled = false;
     setupOverlayCanvas(canvas, markerOverlay);
     playbackState.currentPlaybackTime = 0;
     updateMarkerWrapper();
