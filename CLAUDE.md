@@ -262,6 +262,8 @@ The application includes synchronized audio playback with real-time visual track
 
 ## User Interface Controls
 
+The interface features a dense, efficient layout with basic settings always visible and advanced settings in a collapsible section.
+
 ### Audio Processing Controls
 
 1. **Audio File**: Load any audio file (MP3, WAV, OGG, etc.)
@@ -507,6 +509,6 @@ Depends on browser, typically:
 
 ---
 
-**Last Updated**: 2026-01-05
-**Version**: 3.6 (Fixed "too many function arguments" error for long audio files by replacing Math.max(...array) with reduce())
+**Last Updated**: 2026-01-06
+**Version**: 3.7 (Increased UI density: removed Basic Settings collapsible section, reduced padding throughout)
 **Author**: Built with Claude Code

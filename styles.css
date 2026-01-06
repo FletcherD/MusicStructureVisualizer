@@ -16,12 +16,12 @@
 
   /* Spacing scale (4px base) */
   --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 12px;
-  --space-lg: 16px;
-  --space-xl: 20px;
-  --space-2xl: 24px;
-  --space-3xl: 32px;
+  --space-sm: 6px;
+  --space-md: 8px;
+  --space-lg: 10px;
+  --space-xl: 12px;
+  --space-2xl: 16px;
+  --space-3xl: 20px;
 
   /* Sizing */
   --radius-sm: 4px;
@@ -47,7 +47,7 @@ body {
   background-color: var(--color-bg-primary);
   color: var(--color-text-primary);
   line-height: 1.6;
-  padding: var(--space-xl);
+  padding: var(--space-lg);
 }
 
 /* ============================================
@@ -75,7 +75,7 @@ h1 {
    ============================================ */
 .canvas-section {
   position: relative;
-  margin-bottom: var(--space-3xl);
+  margin-bottom: var(--space-2xl);
   min-height: 400px;
   display: flex;
   align-items: center;
@@ -98,7 +98,7 @@ h1 {
 .progress-container {
   width: 100%;
   max-width: 800px;
-  margin: 0 auto var(--space-3xl);
+  margin: 0 auto var(--space-2xl);
 }
 
 .progress-bar {
@@ -128,23 +128,23 @@ h1 {
    Playback Controls
    ============================================ */
 .playback-section {
-  margin-bottom: var(--space-3xl);
+  margin-bottom: var(--space-2xl);
 }
 
 .playback-controls {
   background: var(--color-bg-secondary);
   border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius-md);
-  padding: var(--space-xl);
+  padding: var(--space-lg);
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
+  gap: var(--space-md);
 }
 
 .playback-main {
   display: flex;
   align-items: center;
-  gap: var(--space-lg);
+  gap: var(--space-md);
 }
 
 .playback-main button {
@@ -173,22 +173,30 @@ h1 {
    Settings Section
    ============================================ */
 .settings-section {
-  margin-top: var(--space-3xl);
+  margin-top: var(--space-2xl);
+}
+
+.basic-settings {
+  background: var(--color-bg-secondary);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  margin-bottom: var(--space-lg);
 }
 
 .settings-group {
   background: var(--color-bg-secondary);
   border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius-md);
-  padding: var(--space-xl);
+  padding: var(--space-lg);
   margin-bottom: var(--space-lg);
 }
 
 .settings-group summary {
   font-weight: bold;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   cursor: pointer;
-  padding: var(--space-sm) 0;
+  padding: var(--space-xs) 0;
   user-select: none;
   list-style-position: outside;
   transition: color 0.2s;
@@ -201,8 +209,11 @@ h1 {
 .settings-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: var(--settings-gap);
-  margin-top: var(--space-lg);
+  gap: var(--space-md);
+}
+
+.settings-group .settings-grid {
+  margin-top: var(--space-md);
 }
 
 /* ============================================
@@ -211,7 +222,7 @@ h1 {
 .control-row {
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
+  gap: var(--space-xs);
 }
 
 .control-row label {
@@ -307,8 +318,8 @@ h1 {
   background: var(--color-bg-tertiary);
   border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius-sm);
-  padding: var(--space-lg);
-  margin-top: var(--space-md);
+  padding: var(--space-md);
+  margin-top: var(--space-sm);
 }
 
 .frequency-cutoffs summary {
@@ -326,8 +337,8 @@ h1 {
 .frequency-inputs {
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
-  margin-top: var(--space-md);
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
 }
 
 .frequency-legend {
@@ -345,14 +356,14 @@ h1 {
    ============================================ */
 .action-section {
   text-align: center;
-  margin-top: var(--space-2xl);
+  margin-top: var(--space-xl);
 }
 
 #processButton {
   width: 100%;
   max-width: 400px;
-  padding: var(--space-lg) var(--space-3xl);
-  font-size: 1.1rem;
+  padding: var(--space-md) var(--space-2xl);
+  font-size: 1.05rem;
   font-weight: bold;
   background: var(--color-accent);
   color: var(--color-text-heading);
@@ -373,7 +384,7 @@ h1 {
 }
 
 .info-display {
-  margin-top: var(--space-lg);
+  margin-top: var(--space-md);
   font-size: 0.85rem;
   color: var(--color-text-secondary);
 }
