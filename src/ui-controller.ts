@@ -571,7 +571,8 @@ async function processMonoMode(
         }
     }
 
-    state.maxPowerMono = Math.max(...powers);
+    // Find max power without spreading array (avoids "too many arguments" error)
+    state.maxPowerMono = powers.reduce((max, p) => Math.max(max, p), 0);
     if (state.maxPowerMono === 0) state.maxPowerMono = 1.0;
 
     state.cachedPowers = powers;
@@ -637,9 +638,10 @@ async function processRGBMode(
         }
     }
 
-    state.maxPowerRGB.low = Math.max(...lowPowers);
-    state.maxPowerRGB.mid = Math.max(...midPowers);
-    state.maxPowerRGB.high = Math.max(...highPowers);
+    // Find max powers without spreading arrays (avoids "too many arguments" error)
+    state.maxPowerRGB.low = lowPowers.reduce((max, p) => Math.max(max, p), 0);
+    state.maxPowerRGB.mid = midPowers.reduce((max, p) => Math.max(max, p), 0);
+    state.maxPowerRGB.high = highPowers.reduce((max, p) => Math.max(max, p), 0);
 
     if (state.maxPowerRGB.low === 0) state.maxPowerRGB.low = 1.0;
     if (state.maxPowerRGB.mid === 0) state.maxPowerRGB.mid = 1.0;

@@ -508,5 +508,5 @@ Depends on browser, typically:
 ---
 
 **Last Updated**: 2026-01-05
-**Version**: 3.5 (Optimized canvas sizing: Z-order curve now uses minimal rectangular dimensions instead of square, reducing unused pixels)
+**Version**: 3.6 (Fixed "too many function arguments" error for long audio files by replacing Math.max(...array) with reduce())
 **Author**: Built with Claude Code
