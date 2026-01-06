@@ -190,11 +190,11 @@ async function handleDetectBpmClick(): Promise<void> {
         bpmInput.value = tempo.toFixed(1);
 
         // Update z-order offset input (offset is in seconds from the library)
-        zOrderOffsetInput.value = offset.toFixed(3);
+        zOrderOffsetInput.value = (-offset).toFixed(3);
 
         // Update slider if value is within range
         if (offset >= -2 && offset <= 2) {
-            zOrderOffsetSlider.value = offset.toFixed(3);
+            zOrderOffsetSlider.value = (-offset).toFixed(3);
         }
 
         detectBpmButton.textContent = `Detected: ${Math.round(bpm)} BPM`;
