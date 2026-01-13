@@ -555,7 +555,7 @@ function handleCanvasClick(e: MouseEvent): void {
  * Handle window resize
  */
 function handleWindowResize(): void {
-    if (state.cachedCanvasWidth && floatingControls.style.display === 'flex') {
+    if (state.cachedCanvasWidth && floatingControls.style.display === 'block') {
         setupOverlayCanvas(canvas, markerOverlay);
         updateMarkerWrapper();
     }
@@ -671,6 +671,18 @@ async function processAudio(): Promise<void> {
     // Setup canvas
     canvas.width = canvasWidth;
     canvas.height = canvasHeight;
+    const maxDisplaySize = 800;
+    const aspectRatio = canvasWidth / canvasHeight;
+    let displayWidth, displayHeight;
+    if (aspectRatio >= 1) {
+        displayWidth = Math.min(maxDisplaySize, canvasWidth);
+        displayHeight = displayWidth / aspectRatio;
+    } else {
+        displayHeight = Math.min(maxDisplaySize, canvasHeight);
+        displayWidth = displayHeight * aspectRatio;
+    }
+    canvas.style.width = `${displayWidth}px`;
+    canvas.style.height = `${displayHeight}px`;
 
     // Clear canvas
     ctx.fillStyle = '#000000';
@@ -696,7 +708,7 @@ async function processAudio(): Promise<void> {
     state.isProcessing = false;
 
     // Show playback controls after first successful process
-    floatingControls.style.display = 'flex';
+    floatingControls.style.display = 'block';
     playPauseButton.disabled = false;
     setupOverlayCanvas(canvas, markerOverlay);
     playbackState.currentPlaybackTime = 0;
