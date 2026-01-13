@@ -22,15 +22,27 @@
             </div>
         </div>
 
-        <!-- Playback Controls -->
+        <!-- Playback Controls and Offset -->
         <section class="playback-section">
-            <div class="playback-controls" id="playbackControls" style="display: none;">
-                <div class="playback-main">
-                    <button id="playPauseButton">▶</button>
-                    <input type="range" id="seekSlider" min="0" max="100" value="0" step="0.01">
+            <div class="playback-offset-grid" id="playbackOffsetGrid" style="display: none;">
+                <!-- Playback Controls Column -->
+                <div class="playback-controls">
+                    <div class="playback-main">
+                        <button id="playPauseButton">▶</button>
+                        <input type="range" id="seekSlider" min="0" max="100" value="0" step="0.01">
+                    </div>
+                    <div class="playback-time">
+                        <span id="currentTime">0:00</span> / <span id="totalTime">0:00</span>
+                    </div>
                 </div>
-                <div class="playback-time">
-                    <span id="currentTime">0:00</span> / <span id="totalTime">0:00</span>
+
+                <!-- Offset Controls Column -->
+                <div class="offset-controls">
+                    <label for="zOrderOffset">Offset (seconds):</label>
+                    <div class="zorder-controls">
+                        <input type="number" id="zOrderOffset" value="0" step="0.001">
+                        <input type="range" id="zOrderOffsetSlider" min="-2" max="2" value="0" step="0.001">
+                    </div>
                 </div>
             </div>
         </section>
@@ -66,15 +78,6 @@
                         <option value="2048">2048</option>
                         <option value="4096">4096</option>
                     </select>
-                </div>
-
-                <!-- Offset -->
-                <div class="control-row">
-                    <label for="zOrderOffset">Offset (seconds):</label>
-                    <div class="zorder-controls">
-                        <input type="number" id="zOrderOffset" value="0" step="0.001">
-                        <input type="range" id="zOrderOffsetSlider" min="-2" max="2" value="0" step="0.001">
-                    </div>
                 </div>
             </div>
 

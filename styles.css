@@ -125,10 +125,16 @@ h1 {
 }
 
 /* ============================================
-   Playback Controls
+   Playback Controls and Offset
    ============================================ */
 .playback-section {
   margin-bottom: var(--space-2xl);
+}
+
+.playback-offset-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-lg);
 }
 
 .playback-controls {
@@ -167,6 +173,22 @@ h1 {
   font-size: 0.9rem;
   color: var(--color-text-secondary);
   font-family: 'Courier New', monospace;
+}
+
+.offset-controls {
+  background: var(--color-bg-secondary);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.offset-controls label {
+  font-size: 0.9rem;
+  color: var(--color-text-primary);
+  font-weight: 500;
 }
 
 /* ============================================
@@ -293,21 +315,27 @@ h1 {
 }
 
 /* ============================================
-   Z-Order Offset Controls
+   Z-Order Offset Controls (inside offset-controls)
    ============================================ */
-.zorder-controls {
+.offset-controls .zorder-controls {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
 }
 
-.zorder-controls input[type="number"] {
+.offset-controls .zorder-controls input[type="number"] {
   width: 100%;
+  padding: var(--space-sm);
+  background: var(--color-bg-primary);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+  font-family: inherit;
 }
 
-.zorder-controls input[type="range"] {
+.offset-controls .zorder-controls input[type="range"] {
   width: 100%;
-  margin-top: var(--space-xs);
 }
 
 /* ============================================
@@ -494,6 +522,11 @@ input[type="range"]:focus::-moz-range-thumb {
 
   .canvas-section {
     min-height: 300px;
+  }
+
+  .playback-offset-grid {
+    grid-template-columns: 1fr; /* Single column */
+    gap: var(--space-lg);
   }
 
   .settings-grid {

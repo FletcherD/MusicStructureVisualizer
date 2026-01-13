@@ -281,45 +281,47 @@ The interface features a dense, efficient layout with basic settings always visi
    - **Must be power of 2** for optimal Z-order curve alignment
    - Higher values = more temporal resolution, larger canvas
 
-4. **Offset** (seconds):
-   - **Number Input**: Any value (positive or negative), default: 0
-   - **Slider**: Range -2 to +2 seconds with 0.001 step precision (high precision adjustment)
-   - Both controls are synchronized - changing one updates the other
-   - Number input can accept values outside slider range for extreme offsets
-   - Shifts visualization start point along Z-order curve
-   - **Instant redraw** - no reprocessing required, uses cached power data
-   - **Auto-populated by Detect BPM**: First beat offset automatically set when using BPM detection
-   - Useful for exploring different visual starting points or aligning with song structure
-
-5. **Window Size** (samples):
+4. **Window Size** (samples):
    - Dropdown: 128, 256, 512, 1024, 2048, 4096 (default: 512)
    - Size of audio window for RMS calculation
    - Larger = smoother but less precise
 
-6. **Visualization Mode**:
+5. **Visualization Mode**:
    - Options: "Mono (Power - Viridis)" or "RGB (Frequency Bands)"
    - Default: RGB (Frequency Bands)
    - Changing mode requires clicking Process to recompute
 
-7. **Frequency Band Cutoffs** (collapsible section, shown when RGB mode is selected):
+6. **Frequency Band Cutoffs** (collapsible section, shown when RGB mode is selected):
    - **Low/Mid Cutoff**: 50-1000 Hz (default: 250 Hz) - separates bass from mids
    - **Mid/High Cutoff**: 1000-12000 Hz (default: 4000 Hz) - separates mids from treble
    - Section can be collapsed/expanded by clicking the header
    - Changing cutoffs requires clicking Process to recompute
 
-8. **Process Button**:
+7. **Process Button**:
    - Triggers visualization computation
    - Shows progress bar during processing
    - **Automatically pauses playback** when clicked
 
-### Playback Controls
+### Playback and Offset Controls
 
-Appear after first successful processing:
+Appear after first successful processing in a two-column layout:
 
+**Playback Column:**
 - **Play/Pause Button**: Start or pause audio playback, resumes from current position
 - **Seek Slider**: Scrub through audio timeline, updates in real-time during playback
 - **Time Display**: Shows current time and total duration (MM:SS format)
 - **Canvas Click to Seek**: Click anywhere on visualization to jump to that position and start playback
+
+**Offset Column:**
+- **Offset (seconds)**:
+  - **Number Input**: Any value (positive or negative), default: 0
+  - **Slider**: Range -2 to +2 seconds with 0.001 step precision (high precision adjustment)
+  - Both controls are synchronized - changing one updates the other
+  - Number input can accept values outside slider range for extreme offsets
+  - Shifts visualization start point along Z-order curve
+  - **Instant redraw** - no reprocessing required, uses cached power data
+  - **Auto-populated by Detect BPM**: First beat offset automatically set when using BPM detection
+  - Useful for exploring different visual starting points or aligning with song structure
 
 ## Usage Workflow
 
@@ -333,9 +335,10 @@ Appear after first successful processing:
 7. Interpret color-coded visualization:
    - Red = bass, Green = mids, Blue = treble
    - Mixed colors = combined frequency content
-8. Use playback controls to listen and see synchronized visualization
-9. Adjust Offset to explore different views (instant update)
-10. Click on visualization to seek to specific positions
+8. Use playback and offset controls (appear after processing):
+   - Play/pause and seek through audio with synchronized visualization
+   - Adjust offset to explore different views (instant update)
+   - Click on visualization to seek to specific positions
 
 ### Mono Mode Workflow
 1. Follow steps 1-3 above (load audio, detect BPM)
@@ -343,7 +346,7 @@ Appear after first successful processing:
 3. Adjust "Samples per Beat" if needed (256 is a good default)
 4. Click "Process" and wait for completion (faster than RGB mode)
 5. Interpret grayscale visualization with Viridis colormap (purple = quiet, yellow = loud)
-6. Use playback controls and adjust Offset as needed
+6. Use playback and offset controls for exploration
 
 ## Key Parameters and Their Effects
 
@@ -473,17 +476,19 @@ Depends on browser, typically:
 
 2. **Instant Offset Updates**: Enables rapid exploration using cached power data
 
-3. **Dynamic Normalization with Stable Reprocessing**:
+3. **Offset Controls in Playback Section**: Offset controls appear alongside playback controls after processing, reinforcing that offset is a real-time exploration tool that doesn't require reprocessing
+
+4. **Dynamic Normalization with Stable Reprocessing**:
    - Mono: Single max power for all pixels
    - RGB: Independent max power per band
    - During reprocessing: uses previous max for real-time rendering
    - After completion: calculates new max and redraws
 
-4. **Real-Time Canvas Updates**: Every 1000 samples during computation for immediate feedback
+5. **Real-Time Canvas Updates**: Every 1000 samples during computation for immediate feedback
 
-5. **Cached Power Values**: Enables instant redraw for offset changes and maintains normalization
+6. **Cached Power Values**: Enables instant redraw for offset changes and maintains normalization
 
-6. **Overlay Canvas Architecture**: Marker rendering doesn't require redrawing entire visualization
+7. **Overlay Canvas Architecture**: Marker rendering doesn't require redrawing entire visualization
 
 ## Known Limitations
 - Mono only (uses left channel for stereo files)
@@ -509,6 +514,6 @@ Depends on browser, typically:
 
 ---
 
-**Last Updated**: 2026-01-06
-**Version**: 3.7 (Increased UI density: removed Basic Settings collapsible section, reduced padding throughout)
+**Last Updated**: 2026-01-12
+**Version**: 3.8 (Moved Offset controls to playback section - appears in two-column layout with playback controls after processing)
 **Author**: Built with Claude Code

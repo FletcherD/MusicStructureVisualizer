@@ -46,7 +46,7 @@ let lowMidCutoffInput: HTMLInputElement;
 let midHighCutoffInput: HTMLInputElement;
 let processButton: HTMLButtonElement;
 
-let playbackControls: HTMLElement;
+let playbackOffsetGrid: HTMLElement;
 let playPauseButton: HTMLButtonElement;
 let seekSlider: HTMLInputElement;
 let currentTimeDisplay: HTMLElement;
@@ -82,7 +82,7 @@ export function init(): void {
     audioFileInput.value = '';
 
     // Playback control elements
-    playbackControls = document.getElementById('playbackControls')!;
+    playbackOffsetGrid = document.getElementById('playbackOffsetGrid')!;
     playPauseButton = document.getElementById('playPauseButton') as HTMLButtonElement;
     seekSlider = document.getElementById('seekSlider') as HTMLInputElement;
     currentTimeDisplay = document.getElementById('currentTime')!;
@@ -141,7 +141,7 @@ async function handleAudioFileChange(e: Event): Promise<void> {
     state.audioBuffer = null;
     state.cachedPowers = null;
     state.cachedRGBPowers = null;
-    playbackControls.style.display = 'none';
+    playbackOffsetGrid.style.display = 'none';
     canvas.style.display = 'none';
 
     if (!state.audioContext) {
@@ -371,7 +371,7 @@ function handleCanvasClick(e: MouseEvent): void {
  * Handle window resize
  */
 function handleWindowResize(): void {
-    if (state.cachedCanvasWidth && playbackControls.style.display === 'block') {
+    if (state.cachedCanvasWidth && playbackOffsetGrid.style.display === 'block') {
         setupOverlayCanvas(canvas, markerOverlay);
         updateMarkerWrapper();
     }
@@ -521,7 +521,7 @@ async function processAudio(): Promise<void> {
     state.isProcessing = false;
 
     // Show playback controls after first successful process
-    playbackControls.style.display = 'block';
+    playbackOffsetGrid.style.display = 'grid';
     playPauseButton.disabled = false;
     setupOverlayCanvas(canvas, markerOverlay);
     playbackState.currentPlaybackTime = 0;
