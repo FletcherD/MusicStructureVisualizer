@@ -39,7 +39,7 @@ WebFFT/
 │   ├── playback.ts            # Audio playback control and time tracking
 │   └── ui-controller.ts       # Main application logic and event handlers
 └── dist/                  # Build output (generated)
-    ├── app.js                 # Bundled JavaScript (131KB minified)
+    ├── app.js                 # Bundled JavaScript (135KB minified)
     └── app.js.map             # Source maps for debugging
 ```
 
@@ -68,7 +68,7 @@ npm run serve
 ```
 
 ### Build Output
-- **Minified bundle**: 131.3 KB (all code in single file, includes web-audio-beat-detector library)
+- **Minified bundle**: 134.8 KB (all code in single file, includes web-audio-beat-detector library)
 - **Source maps**: Included for debugging TypeScript in browser
 - **No CORS issues**: Works with file:// protocol or local server
 
@@ -513,6 +513,6 @@ Depends on browser, typically:
 
 ---
 
-**Last Updated**: 2026-01-12
-**Version**: 3.9 (Fixed canvas dimension calculation to use exact Z-order curve bounds instead of bit-based approximation)
+**Last Updated**: 2026-01-13
+**Version**: 4.0 (Replaced old interface with new improved interface design)
 **Author**: Built with Claude Code

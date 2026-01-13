@@ -1,4 +1,4 @@
-// Main Application Controller
+// Main Application Controller for UI v2
 // Manages UI state, event handlers, and audio processing workflow
 
 import * as BeatDetector from 'web-audio-beat-detector';
@@ -31,23 +31,34 @@ let canvas: HTMLCanvasElement;
 let ctx: CanvasRenderingContext2D;
 let progressContainer: HTMLElement;
 let progressFill: HTMLElement;
+let progressText: HTMLElement;
 let calculatedInfo: HTMLElement;
+let emptyState: HTMLElement;
+let canvasContainer: HTMLElement;
 
 let audioFileInput: HTMLInputElement;
+let fileDropZone: HTMLElement;
+let fileInfo: HTMLElement;
+let fileName: HTMLElement;
+let fileDuration: HTMLElement;
+let changeFileBtn: HTMLButtonElement;
 let bpmInput: HTMLInputElement;
 let detectBpmButton: HTMLButtonElement;
 let samplesPerBeatInput: HTMLSelectElement;
 let windowSizeInput: HTMLSelectElement;
 let zOrderOffsetInput: HTMLInputElement;
 let zOrderOffsetSlider: HTMLInputElement;
-let vizModeInput: HTMLSelectElement;
-let filterControlsGroup: HTMLDetailsElement;
+let modeRgbInput: HTMLInputElement;
+let modeMonoInput: HTMLInputElement;
+let frequencyCutoffs: HTMLElement;
 let lowMidCutoffInput: HTMLInputElement;
 let midHighCutoffInput: HTMLInputElement;
 let processButton: HTMLButtonElement;
 
-let playbackOffsetGrid: HTMLElement;
+let floatingControls: HTMLElement;
 let playPauseButton: HTMLButtonElement;
+let playIcon: SVGElement;
+let pauseIcon: SVGElement;
 let seekSlider: HTMLInputElement;
 let currentTimeDisplay: HTMLElement;
 let totalTimeDisplay: HTMLElement;
@@ -68,18 +79,27 @@ export function init(): void {
     ctx = canvas.getContext('2d')!;
     progressContainer = document.getElementById('progressContainer')!;
     progressFill = document.getElementById('progressFill')!;
+    progressText = document.getElementById('progressText')!;
     calculatedInfo = document.getElementById('calculatedInfo')!;
+    emptyState = document.getElementById('emptyState')!;
+    canvasContainer = document.getElementById('canvasContainer')!;
 
     // Input elements
     audioFileInput = document.getElementById('audioFile') as HTMLInputElement;
+    fileDropZone = document.getElementById('fileDropZone')!;
+    fileInfo = document.getElementById('fileInfo')!;
+    fileName = document.getElementById('fileName')!;
+    fileDuration = document.getElementById('fileDuration')!;
+    changeFileBtn = document.getElementById('changeFileBtn') as HTMLButtonElement;
     bpmInput = document.getElementById('bpm') as HTMLInputElement;
     detectBpmButton = document.getElementById('detectBpm') as HTMLButtonElement;
     samplesPerBeatInput = document.getElementById('samplesPerBeat') as HTMLSelectElement;
     windowSizeInput = document.getElementById('windowSize') as HTMLSelectElement;
     zOrderOffsetInput = document.getElementById('zOrderOffset') as HTMLInputElement;
     zOrderOffsetSlider = document.getElementById('zOrderOffsetSlider') as HTMLInputElement;
-    vizModeInput = document.getElementById('vizMode') as HTMLSelectElement;
-    filterControlsGroup = document.getElementById('filterControlsGroup') as HTMLDetailsElement;
+    modeRgbInput = document.getElementById('modeRgb') as HTMLInputElement;
+    modeMonoInput = document.getElementById('modeMono') as HTMLInputElement;
+    frequencyCutoffs = document.getElementById('frequencyCutoffs')!;
     lowMidCutoffInput = document.getElementById('lowMidCutoff') as HTMLInputElement;
     midHighCutoffInput = document.getElementById('midHighCutoff') as HTMLInputElement;
     processButton = document.getElementById('processButton') as HTMLButtonElement;
@@ -88,12 +108,17 @@ export function init(): void {
     audioFileInput.value = '';
 
     // Playback control elements
-    playbackOffsetGrid = document.getElementById('playbackOffsetGrid')!;
+    floatingControls = document.getElementById('floatingControls')!;
     playPauseButton = document.getElementById('playPauseButton') as HTMLButtonElement;
+    playIcon = playPauseButton.querySelector('.play-icon') as SVGElement;
+    pauseIcon = playPauseButton.querySelector('.pause-icon') as SVGElement;
     seekSlider = document.getElementById('seekSlider') as HTMLInputElement;
     currentTimeDisplay = document.getElementById('currentTime')!;
     totalTimeDisplay = document.getElementById('totalTime')!;
     markerOverlay = document.getElementById('markerOverlay') as HTMLCanvasElement;
+
+    // Override play/pause button updates to use icons instead of text
+    setupPlayPauseButtonObserver();
 
     // Modal elements
     helpModal = document.getElementById('helpModal')!;
@@ -112,17 +137,68 @@ export function init(): void {
 }
 
 /**
+ * Setup play/pause button observer to handle icon changes
+ */
+function setupPlayPauseButtonObserver(): void {
+    const observer = new MutationObserver(() => {
+        const text = playPauseButton.textContent?.trim() || '';
+        if (text.includes('▶') || text === '▶') {
+            playIcon.style.display = 'block';
+            pauseIcon.style.display = 'none';
+            // Clear text content but keep the icons
+            if (playPauseButton.childNodes.length > 2) {
+                Array.from(playPauseButton.childNodes).forEach(node => {
+                    if (node.nodeType === Node.TEXT_NODE) {
+                        node.remove();
+                    }
+                });
+            }
+        } else if (text.includes('⏸') || text === '⏸') {
+            playIcon.style.display = 'none';
+            pauseIcon.style.display = 'block';
+            // Clear text content but keep the icons
+            if (playPauseButton.childNodes.length > 2) {
+                Array.from(playPauseButton.childNodes).forEach(node => {
+                    if (node.nodeType === Node.TEXT_NODE) {
+                        node.remove();
+                    }
+                });
+            }
+        }
+    });
+
+    observer.observe(playPauseButton, {
+        childList: true,
+        characterData: true,
+        subtree: true
+    });
+}
+
+/**
  * Setup all event listeners
  */
 function setupEventListeners(): void {
+    // File input
     audioFileInput.addEventListener('change', handleAudioFileChange);
+    changeFileBtn.addEventListener('click', handleChangeFile);
+
+    // File drop zone
+    fileDropZone.addEventListener('click', () => audioFileInput.click());
+    fileDropZone.addEventListener('dragover', handleDragOver);
+    fileDropZone.addEventListener('dragleave', handleDragLeave);
+    fileDropZone.addEventListener('drop', handleDrop);
+
+    // Controls
     detectBpmButton.addEventListener('click', handleDetectBpmClick);
     processButton.addEventListener('click', handleProcessClick);
     zOrderOffsetInput.addEventListener('input', handleZOrderOffsetInputChange);
     zOrderOffsetSlider.addEventListener('input', handleZOrderOffsetSliderChange);
-    vizModeInput.addEventListener('change', handleVizModeChange);
+    modeRgbInput.addEventListener('change', handleModeChange);
+    modeMonoInput.addEventListener('change', handleModeChange);
     lowMidCutoffInput.addEventListener('input', updateFilterDisplays);
     midHighCutoffInput.addEventListener('input', updateFilterDisplays);
+
+    // Playback
     playPauseButton.addEventListener('click', handlePlayPauseClick);
     seekSlider.addEventListener('input', handleSeekChange);
     canvas.addEventListener('click', handleCanvasClick);
@@ -141,11 +217,65 @@ function setupEventListeners(): void {
 }
 
 /**
+ * Handle change file button click
+ */
+function handleChangeFile(): void {
+    // Reset file info display
+    fileInfo.style.display = 'none';
+    fileDropZone.style.display = 'block';
+    audioFileInput.value = '';
+
+    // Clear audio state
+    state.audioBuffer = null;
+    state.cachedPowers = null;
+    state.cachedRGBPowers = null;
+    floatingControls.style.display = 'none';
+    canvasContainer.style.display = 'none';
+    emptyState.style.display = 'flex';
+
+    // Disable controls
+    processButton.disabled = true;
+    detectBpmButton.disabled = true;
+    playPauseButton.disabled = true;
+
+    // Reset info badges
+    const badges = calculatedInfo.querySelectorAll('.info-badge');
+    badges[0].textContent = 'Window: —';
+    badges[1].textContent = 'Canvas: —';
+}
+
+/**
+ * Handle drag over event
+ */
+function handleDragOver(e: DragEvent): void {
+    e.preventDefault();
+    fileDropZone.classList.add('drag-over');
+}
+
+/**
+ * Handle drag leave event
+ */
+function handleDragLeave(): void {
+    fileDropZone.classList.remove('drag-over');
+}
+
+/**
+ * Handle drop event
+ */
+function handleDrop(e: DragEvent): void {
+    e.preventDefault();
+    fileDropZone.classList.remove('drag-over');
+    if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
+        audioFileInput.files = e.dataTransfer.files;
+        handleAudioFileChange(new Event('change'));
+    }
+}
+
+/**
  * Handle audio file selection
  */
 async function handleAudioFileChange(e: Event): Promise<void> {
-    const target = e.target as HTMLInputElement;
-    const file = target.files?.[0];
+    const file = audioFileInput.files?.[0];
     if (!file) return;
 
     // Immediately disable all controls
@@ -159,16 +289,23 @@ async function handleAudioFileChange(e: Event): Promise<void> {
     }
     playPauseButton.disabled = true;
 
-    // Show loading indication
-    calculatedInfo.textContent = `Loading ${file.name}...`;
-    calculatedInfo.style.color = 'var(--color-accent)';
+    // Update file info display
+    fileName.textContent = file.name;
+    fileDropZone.style.display = 'none';
+    fileInfo.style.display = 'block';
+
+    // Show loading in info badges
+    const badges = calculatedInfo.querySelectorAll('.info-badge');
+    badges[0].textContent = 'Loading...';
+    badges[1].textContent = '';
 
     // Clear previous data
     state.audioBuffer = null;
     state.cachedPowers = null;
     state.cachedRGBPowers = null;
-    playbackOffsetGrid.style.display = 'none';
-    canvas.style.display = 'none';
+    floatingControls.style.display = 'none';
+    emptyState.style.display = 'flex';
+    canvasContainer.style.display = 'none';
 
     if (!state.audioContext) {
         state.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -178,13 +315,16 @@ async function handleAudioFileChange(e: Event): Promise<void> {
         const arrayBuffer = await file.arrayBuffer();
         state.audioBuffer = await state.audioContext.decodeAudioData(arrayBuffer);
 
+        // Update file duration
+        fileDuration.textContent = formatTime(state.audioBuffer.duration);
+
         // Re-enable controls
         processButton.disabled = false;
         detectBpmButton.disabled = false;
 
         // Reset info display
-        calculatedInfo.textContent = 'Window interval: -- ms | Canvas size: --';
-        calculatedInfo.style.color = '';
+        badges[0].textContent = 'Window: —';
+        badges[1].textContent = 'Canvas: —';
 
         // Automatically detect BPM
         await handleDetectBpmClick();
@@ -193,10 +333,12 @@ async function handleAudioFileChange(e: Event): Promise<void> {
         alert('Error loading audio file. Please try another file.');
 
         // Reset UI on error
-        calculatedInfo.textContent = 'Error loading file';
-        calculatedInfo.style.color = '#ff4444';
+        badges[0].textContent = 'Error loading file';
+        badges[1].textContent = '';
         processButton.disabled = true;
         detectBpmButton.disabled = true;
+        fileDropZone.style.display = 'block';
+        fileInfo.style.display = 'none';
     }
 }
 
@@ -207,7 +349,15 @@ async function handleDetectBpmClick(): Promise<void> {
     if (!state.audioBuffer) return;
 
     detectBpmButton.disabled = true;
-    detectBpmButton.textContent = 'Detecting...';
+    const originalText = detectBpmButton.innerHTML;
+    detectBpmButton.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="1"></circle>
+            <circle cx="12" cy="5" r="1"></circle>
+            <circle cx="12" cy="19" r="1"></circle>
+        </svg>
+        Detecting...
+    `;
 
     try {
         const { bpm, offset, tempo } = await BeatDetector.guess(state.audioBuffer);
@@ -223,11 +373,16 @@ async function handleDetectBpmClick(): Promise<void> {
             zOrderOffsetSlider.value = (-offset).toFixed(3);
         }
 
-        detectBpmButton.textContent = `Detected: ${Math.round(bpm)} BPM`;
+        detectBpmButton.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            ${Math.round(bpm)} BPM
+        `;
 
         // Re-enable after 2 seconds
         setTimeout(() => {
-            detectBpmButton.textContent = 'Detect BPM';
+            detectBpmButton.innerHTML = originalText;
             detectBpmButton.disabled = false;
         }, 2000);
 
@@ -236,7 +391,7 @@ async function handleDetectBpmClick(): Promise<void> {
     } catch (error) {
         console.error('Error detecting BPM:', error);
         alert('Error detecting BPM. Please try manually entering the BPM.');
-        detectBpmButton.textContent = 'Detect BPM';
+        detectBpmButton.innerHTML = originalText;
         detectBpmButton.disabled = false;
     }
 }
@@ -299,9 +454,9 @@ function updateVisualizationWithOffset(): void {
 /**
  * Handle visualization mode change
  */
-function handleVizModeChange(): void {
-    const isRGB = vizModeInput.value === 'rgb';
-    filterControlsGroup.open = isRGB;
+function handleModeChange(): void {
+    const isRGB = modeRgbInput.checked;
+    frequencyCutoffs.style.display = isRGB ? 'block' : 'none';
 }
 
 /**
@@ -400,7 +555,7 @@ function handleCanvasClick(e: MouseEvent): void {
  * Handle window resize
  */
 function handleWindowResize(): void {
-    if (state.cachedCanvasWidth && playbackOffsetGrid.style.display === 'block') {
+    if (state.cachedCanvasWidth && floatingControls.style.display === 'block') {
         setupOverlayCanvas(canvas, markerOverlay);
         updateMarkerWrapper();
     }
@@ -458,16 +613,18 @@ async function processAudio(): Promise<void> {
     if (state.isProcessing || !state.audioBuffer) return;
 
     state.isProcessing = true;
+    emptyState.style.display = 'none';
+    canvasContainer.style.display = 'flex';
     canvas.style.display = '';
-    progressContainer.style.display = 'block';
+    progressContainer.classList.add('active');
     progressFill.style.width = '0%';
-    progressFill.textContent = '0%';
+    progressText.textContent = '0%';
 
     const bpm = parseFloat(bpmInput.value);
     const samplesPerBeat = parseInt(samplesPerBeatInput.value);
     const windowSize = parseInt(windowSizeInput.value);
     const zOrderOffsetSeconds = parseFloat(zOrderOffsetInput.value);
-    const vizMode = vizModeInput.value as 'mono' | 'rgb';
+    const vizMode = modeRgbInput.checked ? 'rgb' : 'mono';
 
     const sampleRate = state.audioBuffer.sampleRate;
 
@@ -479,9 +636,9 @@ async function processAudio(): Promise<void> {
         const lowMidCutoff = parseFloat(lowMidCutoffInput.value);
         const midHighCutoff = parseFloat(midHighCutoffInput.value);
 
-        progressFill.textContent = 'Filtering...';
+        progressText.textContent = 'Filtering...';
         filteredBands = await applyFrequencyFiltering(state.audioBuffer, lowMidCutoff, midHighCutoff);
-        progressFill.textContent = '0%';
+        progressText.textContent = '0%';
     } else {
         audioData = state.audioBuffer.getChannelData(0);
     }
@@ -510,24 +667,14 @@ async function processAudio(): Promise<void> {
     const canvasWidth = maxX + 1;
     const canvasHeight = maxY + 1;
 
-    // Update info
-    calculatedInfo.textContent = `Window interval: ${(windowIntervalSeconds * 1000).toFixed(4)} ms | Canvas size: ${canvasWidth}x${canvasHeight} | Total windows: ${totalWindows}`;
+    // Update info badges
+    const badges = calculatedInfo.querySelectorAll('.info-badge');
+    badges[0].textContent = `Window: ${(windowIntervalSeconds * 1000).toFixed(2)} ms`;
+    badges[1].textContent = `Canvas: ${canvasWidth}×${canvasHeight}`;
 
     // Setup canvas
     canvas.width = canvasWidth;
     canvas.height = canvasHeight;
-    const maxDisplaySize = 800;
-    const aspectRatio = canvasWidth / canvasHeight;
-    let displayWidth, displayHeight;
-    if (aspectRatio >= 1) {
-        displayWidth = Math.min(maxDisplaySize, canvasWidth);
-        displayHeight = displayWidth / aspectRatio;
-    } else {
-        displayHeight = Math.min(maxDisplaySize, canvasHeight);
-        displayWidth = displayHeight * aspectRatio;
-    }
-    canvas.style.width = `${displayWidth}px`;
-    canvas.style.height = `${displayHeight}px`;
 
     // Clear canvas
     ctx.fillStyle = '#000000';
@@ -544,16 +691,16 @@ async function processAudio(): Promise<void> {
     }
 
     progressFill.style.width = '100%';
-    progressFill.textContent = '100%';
+    progressText.textContent = '100%';
 
     setTimeout(() => {
-        progressContainer.style.display = 'none';
-    }, 1000);
+        progressContainer.classList.remove('active');
+    }, 500);
 
     state.isProcessing = false;
 
     // Show playback controls after first successful process
-    playbackOffsetGrid.style.display = 'grid';
+    floatingControls.style.display = 'block';
     playPauseButton.disabled = false;
     setupOverlayCanvas(canvas, markerOverlay);
     playbackState.currentPlaybackTime = 0;
@@ -598,12 +745,12 @@ async function processMonoMode(
             ctx.putImageData(imageData, 0, 0);
             const progress = (i / totalWindows) * 100;
             progressFill.style.width = `${progress}%`;
-            progressFill.textContent = `${Math.round(progress)}%`;
+            progressText.textContent = `${Math.round(progress)}%`;
             await new Promise(resolve => requestAnimationFrame(resolve));
         }
     }
 
-    // Find max power without spreading array (avoids "too many arguments" error)
+    // Find max power
     state.maxPowerMono = powers.reduce((max, p) => Math.max(max, p), 0);
     if (state.maxPowerMono === 0) state.maxPowerMono = 1.0;
 
@@ -665,12 +812,12 @@ async function processRGBMode(
             ctx.putImageData(imageData, 0, 0);
             const progress = (i / totalWindows) * 100;
             progressFill.style.width = `${progress}%`;
-            progressFill.textContent = `${Math.round(progress)}%`;
+            progressText.textContent = `${Math.round(progress)}%`;
             await new Promise(resolve => requestAnimationFrame(resolve));
         }
     }
 
-    // Find max powers without spreading arrays (avoids "too many arguments" error)
+    // Find max powers
     state.maxPowerRGB.low = lowPowers.reduce((max, p) => Math.max(max, p), 0);
     state.maxPowerRGB.mid = midPowers.reduce((max, p) => Math.max(max, p), 0);
     state.maxPowerRGB.high = highPowers.reduce((max, p) => Math.max(max, p), 0);

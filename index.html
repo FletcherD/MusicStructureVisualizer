@@ -3,12 +3,283 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Audio Structure Visualizer</title>
+    <title>WebFFT - Audio Structure Visualizer</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <!-- Help Icon -->
-    <button id="helpIcon" class="help-icon" title="Show help">?</button>
+    <!-- Main Layout: Sidebar + Visualization Area -->
+    <div class="app-layout">
+
+        <!-- Left Sidebar: Controls -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1>WebFFT</h1>
+                <p class="subtitle">Audio Structure Visualizer</p>
+                <button class="help-btn" id="helpIcon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Workflow Steps -->
+            <div class="workflow">
+
+                <!-- Step 1: Load Audio -->
+                <div class="step-card" data-step="1">
+                    <div class="step-header">
+                        <span class="step-number">1</span>
+                        <h2 class="step-title">Load Audio</h2>
+                    </div>
+                    <div class="step-content">
+                        <div class="file-drop-zone" id="fileDropZone">
+                            <svg class="upload-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="17 8 12 3 7 8"></polyline>
+                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                            <p class="drop-text">Drop audio file here or click to browse</p>
+                            <p class="drop-hint">MP3, WAV, OGG, M4A</p>
+                            <input type="file" id="audioFile" accept="audio/*" hidden>
+                        </div>
+                        <div class="file-info" id="fileInfo" style="display: none;">
+                            <div class="info-row">
+                                <span class="info-label">File:</span>
+                                <span class="info-value" id="fileName">—</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Duration:</span>
+                                <span class="info-value" id="fileDuration">—</span>
+                            </div>
+                            <button class="change-file-btn" id="changeFileBtn">Change File</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Configure -->
+                <div class="step-card" data-step="2">
+                    <div class="step-header">
+                        <span class="step-number">2</span>
+                        <h2 class="step-title">Configure</h2>
+                    </div>
+                    <div class="step-content">
+
+                        <!-- BPM Detection -->
+                        <div class="param-group">
+                            <label class="param-label">
+                                <span>Tempo (BPM)</span>
+                                <span class="param-hint">Critical: must match song tempo</span>
+                            </label>
+                            <div class="param-inline">
+                                <input type="number" id="bpm" value="120" min="1" max="300" step="0.1" class="param-input">
+                                <button id="detectBpm" class="detect-btn" disabled>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="12" cy="12" r="1"></circle>
+                                        <circle cx="12" cy="5" r="1"></circle>
+                                        <circle cx="12" cy="19" r="1"></circle>
+                                    </svg>
+                                    Auto-Detect
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Resolution -->
+                        <div class="param-group">
+                            <label class="param-label" for="samplesPerBeat">
+                                <span>Resolution</span>
+                                <span class="param-hint">Samples per beat</span>
+                            </label>
+                            <select id="samplesPerBeat" class="param-select">
+                                <option value="64">64 (Fast, coarse)</option>
+                                <option value="128">128</option>
+                                <option value="256" selected>256 (Recommended)</option>
+                                <option value="512">512</option>
+                                <option value="1024">1024 (Slow, fine)</option>
+                                <option value="2048">2048</option>
+                                <option value="4096">4096</option>
+                            </select>
+                        </div>
+
+                        <!-- Advanced Settings Toggle -->
+                        <details class="advanced-toggle" id="advancedToggle">
+                            <summary>Advanced Settings</summary>
+
+                            <!-- Visualization Mode -->
+                            <div class="param-group">
+                                <label class="param-label" for="vizMode">
+                                    <span>Visualization Mode</span>
+                                </label>
+                                <div class="mode-selector">
+                                    <label class="mode-option">
+                                        <input type="radio" name="vizMode" value="rgb" id="modeRgb" checked>
+                                        <span class="mode-card">
+                                            <span class="mode-name">RGB Frequency</span>
+                                            <span class="mode-desc">Bass • Mids • Treble</span>
+                                        </span>
+                                    </label>
+                                    <label class="mode-option">
+                                        <input type="radio" name="vizMode" value="mono" id="modeMono">
+                                        <span class="mode-card">
+                                            <span class="mode-name">Mono Power</span>
+                                            <span class="mode-desc">Amplitude only</span>
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Window Size -->
+                            <div class="param-group">
+                                <label class="param-label" for="windowSize">
+                                    <span>Window Size</span>
+                                    <span class="param-hint">Analysis window (samples)</span>
+                                </label>
+                                <select id="windowSize" class="param-select">
+                                    <option value="128">128</option>
+                                    <option value="256">256</option>
+                                    <option value="512" selected>512</option>
+                                    <option value="1024">1024</option>
+                                    <option value="2048">2048</option>
+                                    <option value="4096">4096</option>
+                                </select>
+                            </div>
+
+                            <!-- Frequency Cutoffs (RGB mode only) -->
+                            <div class="param-group" id="frequencyCutoffs" style="display: none;">
+                                <label class="param-label">Frequency Bands</label>
+
+                                <div class="frequency-controls">
+                                    <div class="freq-input-group">
+                                        <label for="lowMidCutoff">Low/Mid Cutoff</label>
+                                        <div class="input-with-unit">
+                                            <input type="number" id="lowMidCutoff" value="250" min="50" max="1000" step="10">
+                                            <span class="unit">Hz</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="freq-input-group">
+                                        <label for="midHighCutoff">Mid/High Cutoff</label>
+                                        <div class="input-with-unit">
+                                            <input type="number" id="midHighCutoff" value="4000" min="1000" max="12000" step="100">
+                                            <span class="unit">Hz</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="freq-legend">
+                                        <div class="legend-item">
+                                            <span class="legend-color" style="background: #ff4444;"></span>
+                                            <span>Low: 20-<span id="lowMidDisplay">250</span> Hz</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <span class="legend-color" style="background: #44ff44;"></span>
+                                            <span>Mid: <span id="lowMidDisplay2">250</span>-<span id="midHighDisplay">4000</span> Hz</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <span class="legend-color" style="background: #4444ff;"></span>
+                                            <span>High: <span id="midHighDisplay2">4000</span>-20k Hz</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </details>
+
+                    </div>
+                </div>
+
+                <!-- Step 3: Process -->
+                <div class="step-card" data-step="3">
+                    <div class="step-header">
+                        <span class="step-number">3</span>
+                        <h2 class="step-title">Generate</h2>
+                    </div>
+                    <div class="step-content">
+                        <button id="processButton" class="process-btn" disabled>
+                            <svg class="btn-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                            </svg>
+                            Process Audio
+                        </button>
+                        <div class="process-info" id="calculatedInfo">
+                            <div class="info-badge">Window: —</div>
+                            <div class="info-badge">Canvas: —</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Footer Info -->
+            <div class="sidebar-footer">
+                <p class="footer-text">Built with Claude Code</p>
+            </div>
+        </aside>
+
+        <!-- Main Area: Visualization -->
+        <main class="main-area">
+
+            <!-- Empty State -->
+            <div class="empty-state" id="emptyState">
+                <svg class="empty-icon" width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                    <path d="M9 18V5l12-2v13"></path>
+                    <circle cx="6" cy="18" r="3"></circle>
+                    <circle cx="18" cy="16" r="3"></circle>
+                </svg>
+                <h2>Ready to visualize</h2>
+                <p>Load an audio file and click Process to begin</p>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="progress-bar-container" id="progressContainer">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <p class="progress-text" id="progressText">0%</p>
+            </div>
+
+            <!-- Canvas Container -->
+            <div class="canvas-container" id="canvasContainer" style="display: none;">
+                <canvas id="visualizer"></canvas>
+                <canvas id="markerOverlay" class="marker-overlay"></canvas>
+            </div>
+
+            <!-- Floating Playback Controls -->
+            <div class="floating-controls" id="floatingControls" style="display: none;">
+                <div class="control-group">
+                    <div class="playback-row">
+                        <button id="playPauseButton" class="play-btn" title="Play/Pause">
+                            <svg class="play-icon" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                            </svg>
+                            <svg class="pause-icon" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style="display: none;">
+                                <rect x="6" y="4" width="4" height="16"></rect>
+                                <rect x="14" y="4" width="4" height="16"></rect>
+                            </svg>
+                        </button>
+
+                        <div class="timeline-group">
+                            <input type="range" id="seekSlider" min="0" max="100" value="0" step="0.01" class="seek-slider">
+                            <div class="time-display">
+                                <span id="currentTime">0:00</span>
+                                <span class="time-separator">/</span>
+                                <span id="totalTime">0:00</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="offset-group">
+                        <label class="offset-label">
+                            <span>Offset</span>
+                            <input type="number" id="zOrderOffset" value="0" step="0.001" class="offset-input">
+                        </label>
+                        <input type="range" id="zOrderOffsetSlider" min="-2" max="2" value="0" step="0.001" class="offset-slider">
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+    </div>
 
     <!-- Help Modal -->
     <div id="helpModal" class="modal">
@@ -17,151 +288,29 @@
             <h2>WebFFT - Audio Structure Visualizer</h2>
             <p>WebFFT creates visual representations of audio files by mapping sound characteristics onto a 2D canvas using a Z-order space-filling curve. When the window sampling rate aligns with the song's tempo, periodic patterns in the music manifest as geometric patterns in the visualization.</p>
 
-            <h3>Quick Instructions</h3>
+            <h3>Quick Start</h3>
+            <ol>
+                <li><strong>Load Audio:</strong> Drag and drop or click to select an audio file (works best with grid-based electronic music)</li>
+                <li><strong>Auto-Detect BPM:</strong> Click the Auto-Detect button to automatically find the tempo</li>
+                <li><strong>Process:</strong> Click "Process Audio" and wait for the visualization to generate</li>
+                <li><strong>Explore:</strong> Click anywhere on the visualization to jump to that point in the song</li>
+                <li><strong>Fine-tune:</strong> Adjust the offset slider to align patterns with beat markers</li>
+            </ol>
+
+            <h3>Visualization Modes</h3>
+            <p><strong>RGB Frequency:</strong> Maps frequency bands to colors (Red = bass, Green = mids, Blue = treble)</p>
+            <p><strong>Mono Power:</strong> Maps overall amplitude using the Viridis colormap (purple = quiet, yellow = loud)</p>
+
+            <h3>Tips</h3>
             <ul>
-                <li>Click "Choose File" to load a file from your system.
-                    <ul>
-                        <li>For best results use a track that's composed 'on the grid'; for example, a lot of electronic music.</li>
-                    </ul>
-                </li>
-                <li>Click anywhere on the visualization to start playing from that point. An indicator tracks the play position on the visualization.</li>
-                <li>To improve results, move the "Offset" slider until the yellow dot jumps on the '1' beat.</li>
+                <li>Getting the BPM right is crucial for clear patterns</li>
+                <li>Try different resolutions (256 is a good starting point)</li>
+                <li>Click on the visualization to seek to that position</li>
+                <li>Adjust offset in real-time while playing to find the beat</li>
             </ul>
 
-            <button class="modal-button" id="closeModalButton">Got it!</button>
+            <button class="modal-btn" id="closeModalButton">Got it!</button>
         </div>
-    </div>
-
-    <div class="container">
-        <main class="canvas-section">
-            <canvas id="visualizer" style="display: none;"></canvas>
-
-            <!-- Overlay canvas for marker (positioned absolutely over main canvas) -->
-            <canvas id="markerOverlay" style="position: absolute; pointer-events: none; border: 1px solid #444; display: none;"></canvas>
-        </main>
-
-        <!-- Progress Bar -->
-        <div class="progress-container" id="progressContainer">
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressFill">0%</div>
-            </div>
-        </div>
-
-        <!-- Playback Controls and Offset -->
-        <section class="playback-section">
-            <div class="playback-offset-grid" id="playbackOffsetGrid" style="display: none;">
-                <!-- Playback Controls Column -->
-                <div class="playback-controls">
-                    <div class="playback-main">
-                        <button id="playPauseButton">▶</button>
-                        <input type="range" id="seekSlider" min="0" max="100" value="0" step="0.01">
-                    </div>
-                    <div class="playback-time">
-                        <span id="currentTime">0:00</span> / <span id="totalTime">0:00</span>
-                    </div>
-                </div>
-
-                <!-- Offset Controls Column -->
-                <div class="offset-controls">
-                    <label for="zOrderOffset">Offset (seconds):</label>
-                    <div class="zorder-controls">
-                        <input type="number" id="zOrderOffset" value="0" step="0.001">
-                        <input type="range" id="zOrderOffsetSlider" min="-2" max="2" value="0" step="0.001">
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Settings Section -->
-        <section class="settings-section">
-            <!-- Basic Settings (always visible) -->
-            <div class="settings-grid basic-settings">
-                <!-- Audio File -->
-                <div class="control-row">
-                    <label for="audioFile">Audio File:</label>
-                    <input type="file" id="audioFile" accept="audio/*">
-                </div>
-
-                <!-- BPM with inline Detect button -->
-                <div class="control-row">
-                    <label for="bpm">BPM:</label>
-                    <div class="control-inline">
-                        <input type="number" id="bpm" value="120" min="1" max="300" step="0.1">
-                        <button id="detectBpm" class="inline-button" disabled>Detect BPM</button>
-                    </div>
-                </div>
-
-                <!-- Samples per Beat -->
-                <div class="control-row">
-                    <label for="samplesPerBeat">Resolution:</label>
-                    <select id="samplesPerBeat">
-                        <option value="64">64</option>
-                        <option value="128">128</option>
-                        <option value="256" selected>256</option>
-                        <option value="512">512</option>
-                        <option value="1024">1024</option>
-                        <option value="2048">2048</option>
-                        <option value="4096">4096</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Advanced Settings -->
-            <details class="settings-group" id="advancedSettings">
-                <summary>Advanced Settings</summary>
-                <div class="settings-grid">
-                    <!-- Window Size -->
-                    <div class="control-row">
-                        <label for="windowSize">Window Size (samples):</label>
-                        <select id="windowSize">
-                            <option value="128">128</option>
-                            <option value="256">256</option>
-                            <option value="512" selected>512</option>
-                            <option value="1024">1024</option>
-                            <option value="2048">2048</option>
-                            <option value="4096">4096</option>
-                        </select>
-                    </div>
-
-                    <!-- Visualization Mode -->
-                    <div class="control-row">
-                        <label for="vizMode">Visualization Mode:</label>
-                        <select id="vizMode">
-                            <option value="mono">Mono (Power - Viridis)</option>
-                            <option value="rgb" selected>RGB (Frequency Bands)</option>
-                        </select>
-                    </div>
-
-                    <!-- Frequency Band Cutoffs (full width) -->
-                    <details class="control-row frequency-cutoffs" id="filterControlsGroup" open>
-                        <summary>Frequency Band Cutoffs</summary>
-                        <div class="frequency-inputs">
-                            <div class="control-row">
-                                <label for="lowMidCutoff">Low/Mid (Hz):</label>
-                                <input type="number" id="lowMidCutoff" value="250" min="50" max="1000" step="10">
-                            </div>
-                            <div class="control-row">
-                                <label for="midHighCutoff">Mid/High (Hz):</label>
-                                <input type="number" id="midHighCutoff" value="4000" min="1000" max="12000" step="100">
-                            </div>
-                            <div class="frequency-legend">
-                                Red: Low (20 - <span id="lowMidDisplay">250</span> Hz)<br>
-                                Green: Mid (<span id="lowMidDisplay2">250</span> - <span id="midHighDisplay">4000</span> Hz)<br>
-                                Blue: High (<span id="midHighDisplay2">4000</span> - 20000 Hz)
-                            </div>
-                        </div>
-                    </details>
-                </div>
-            </details>
-
-            <!-- Action Section -->
-            <div class="action-section">
-                <button id="processButton" disabled>Process</button>
-                <div class="info-display" id="calculatedInfo">
-                    Window interval: -- ms | Canvas size: --
-                </div>
-            </div>
-        </section>
     </div>
 
     <script src="dist/app.js"></script>
