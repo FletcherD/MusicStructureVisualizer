@@ -5,6 +5,9 @@
   "scripts": {
     "dev": "esbuild src/ui-controller.ts --bundle --sourcemap --outfile=dist/app.js --watch",
     "build": "esbuild src/ui-controller.ts --bundle --minify --sourcemap --outfile=dist/app.js",
+    "dev2": "esbuild src/ui-controller2.ts --bundle --sourcemap --outfile=dist/app2.js --watch",
+    "build2": "esbuild src/ui-controller2.ts --bundle --minify --sourcemap --outfile=dist/app2.js",
+    "build:all": "npm run build && npm run build2",
     "serve": "python3 -m http.server 8000"
   },
   "devDependencies": {

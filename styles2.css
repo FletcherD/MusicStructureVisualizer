@@ -2,7 +2,7 @@
    Design System & Variables
    ============================================ */
 :root {
-  /* Color Palette - Modern dark theme with grey accents */
+  /* Color Palette - Modern dark theme with blue accents */
   --color-bg-dark: #0f0f12;
   --color-bg-card: #1a1a1f;
   --color-bg-elevated: #232329;
@@ -11,16 +11,17 @@
   --color-text-secondary: #9191a0;
   --color-text-muted: #636370;
 
-  /* Grey gradient accent */
-  --gradient-primary: linear-gradient(135deg, #6b6b7a 0%, #4a4a56 100%);
-  --gradient-secondary: linear-gradient(135deg, #8a8a9a 0%, #5a5a66 100%);
-  --gradient-success: linear-gradient(135deg, #6b6b7a 0%, #5a5a66 100%);
+  /* Blue accent colors */
+  --gradient-primary: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+  --gradient-secondary: linear-gradient(135deg, #5a9fe8 0%, #4585d0 100%);
+  --gradient-success: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
 
-  --color-accent: #6b6b7a;
-  --color-accent-hover: #7a7a89;
-  --color-success: #6b6b7a;
+  --color-accent: #4a90e2;
+  --color-accent-hover: #5a9fe8;
+  --color-accent-active: #357abd;
+  --color-success: #4a90e2;
   --color-warning: #8a8a8a;
-  --color-error: #9a6b6b;
+  --color-error: #e24a4a;
 
   /* Spacing */
   --space-xs: 4px;
@@ -219,7 +220,7 @@ body {
 .file-drop-zone:hover,
 .file-drop-zone.drag-over {
   border-color: var(--color-accent);
-  background: rgba(107, 107, 122, 0.05);
+  background: rgba(74, 144, 226, 0.05);
 }
 
 .upload-icon {
@@ -284,8 +285,13 @@ body {
 
 .change-file-btn:hover {
   background: var(--color-accent);
-  color: var(--color-text-primary);
+  color: white;
   border-color: var(--color-accent);
+}
+
+.change-file-btn:active {
+  transform: translateY(1px);
+  opacity: 0.9;
 }
 
 /* ============================================
@@ -366,6 +372,11 @@ body {
   color: white;
 }
 
+.detect-btn:not(:disabled):active {
+  transform: translateY(1px);
+  opacity: 0.9;
+}
+
 .detect-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -403,7 +414,7 @@ body {
 
 .mode-option input[type="radio"]:checked + .mode-card {
   border-color: var(--color-accent);
-  background: rgba(107, 107, 122, 0.1);
+  background: rgba(74, 144, 226, 0.1);
 }
 
 .mode-name {
@@ -564,6 +575,11 @@ body {
 
 .process-btn:not(:disabled):hover {
   opacity: 0.9;
+}
+
+.process-btn:not(:disabled):active {
+  transform: translateY(1px);
+  opacity: 0.95;
 }
 
 .process-btn:disabled {
@@ -740,7 +756,7 @@ body {
 
 .control-group {
   display: grid;
-  grid-template-columns: auto 2fr 1fr;
+  grid-template-columns: auto 1fr 1fr;
   gap: var(--space-xl);
   align-items: center;
 }
@@ -763,6 +779,10 @@ body {
 
 .play-btn:hover {
   opacity: 0.9;
+}
+
+.play-btn:active {
+  transform: scale(0.95);
 }
 
 .timeline-group {
@@ -847,7 +867,7 @@ input[type="range"]::-webkit-slider-thumb {
   appearance: none;
   width: 18px;
   height: 18px;
-  background: white;
+  background: var(--color-accent);
   border-radius: 50%;
   cursor: pointer;
   box-shadow: var(--shadow-sm);
@@ -855,13 +875,17 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 input[type="range"]::-webkit-slider-thumb:hover {
-  background: #e0e0e0;
+  background: var(--color-accent-hover);
+}
+
+input[type="range"]::-webkit-slider-thumb:active {
+  transform: scale(0.95);
 }
 
 input[type="range"]::-moz-range-thumb {
   width: 16px;
   height: 16px;
-  background: white;
+  background: var(--color-accent);
   border-radius: 50%;
   cursor: pointer;
   border: none;
@@ -870,7 +894,11 @@ input[type="range"]::-moz-range-thumb {
 }
 
 input[type="range"]::-moz-range-thumb:hover {
-  background: #e0e0e0;
+  background: var(--color-accent-hover);
+}
+
+input[type="range"]::-moz-range-thumb:active {
+  transform: scale(0.95);
 }
 
 /* ============================================
@@ -982,6 +1010,11 @@ input[type="range"]::-moz-range-thumb:hover {
 
 .modal-btn:hover {
   opacity: 0.9;
+}
+
+.modal-btn:active {
+  transform: translateY(1px);
+  opacity: 0.95;
 }
 
 /* ============================================
