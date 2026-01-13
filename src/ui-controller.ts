@@ -53,6 +53,12 @@ let currentTimeDisplay: HTMLElement;
 let totalTimeDisplay: HTMLElement;
 let markerOverlay: HTMLCanvasElement;
 
+// Modal elements
+let helpModal: HTMLElement;
+let helpIcon: HTMLButtonElement;
+let closeModal: HTMLButtonElement;
+let closeModalButton: HTMLButtonElement;
+
 /**
  * Initialize the application
  */
@@ -89,11 +95,20 @@ export function init(): void {
     totalTimeDisplay = document.getElementById('totalTime')!;
     markerOverlay = document.getElementById('markerOverlay') as HTMLCanvasElement;
 
+    // Modal elements
+    helpModal = document.getElementById('helpModal')!;
+    helpIcon = document.getElementById('helpIcon') as HTMLButtonElement;
+    closeModal = document.getElementById('closeModal') as HTMLButtonElement;
+    closeModalButton = document.getElementById('closeModalButton') as HTMLButtonElement;
+
     // Setup event listeners
     setupEventListeners();
 
     // Make canvas clickable
     canvas.style.cursor = 'pointer';
+
+    // Show help modal on first load
+    showHelpModal();
 }
 
 /**
@@ -112,6 +127,17 @@ function setupEventListeners(): void {
     seekSlider.addEventListener('input', handleSeekChange);
     canvas.addEventListener('click', handleCanvasClick);
     window.addEventListener('resize', handleWindowResize);
+
+    // Modal event listeners
+    helpIcon.addEventListener('click', showHelpModal);
+    closeModal.addEventListener('click', hideHelpModal);
+    closeModalButton.addEventListener('click', hideHelpModal);
+    helpModal.addEventListener('click', (e) => {
+        // Close if clicking outside the modal content
+        if (e.target === helpModal) {
+            hideHelpModal();
+        }
+    });
 }
 
 /**
@@ -655,6 +681,20 @@ async function processRGBMode(
     state.cachedVizMode = 'rgb';
 
     redrawCanvas(state, canvas, zOrderOffset);
+}
+
+/**
+ * Show the help modal
+ */
+function showHelpModal(): void {
+    helpModal.classList.add('show');
+}
+
+/**
+ * Hide the help modal
+ */
+function hideHelpModal(): void {
+    helpModal.classList.remove('show');
 }
 
 // Auto-initialize when DOM is ready

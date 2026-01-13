@@ -7,6 +7,32 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <!-- Help Icon -->
+    <button id="helpIcon" class="help-icon" title="Show help">?</button>
+
+    <!-- Help Modal -->
+    <div id="helpModal" class="modal">
+        <div class="modal-content">
+            <button class="modal-close" id="closeModal">&times;</button>
+            <h2>WebFFT - Audio Structure Visualizer</h2>
+            <p>WebFFT creates visual representations of audio files by mapping sound characteristics onto a 2D canvas using a Z-order space-filling curve. When the window sampling rate aligns with the song's tempo, periodic patterns in the music manifest as geometric patterns in the visualization.</p>
+
+            <h3>Quick Instructions</h3>
+            <ul>
+                <li>Click "Choose File" to load a file from your system.
+                    <ul>
+                        <li>For best results use a track that's composed 'on the grid'; for example, a lot of electronic music.</li>
+                    </ul>
+                </li>
+                <li>Click "Process".</li>
+                <li>Click anywhere on the visualization to start playing from that point. An indicator tracks the play position on the visualization.</li>
+                <li>To improve results, move the "Offset" slider until the yellow dot jumps on the '1' beat.</li>
+            </ul>
+
+            <button class="modal-button" id="closeModalButton">Got it!</button>
+        </div>
+    </div>
+
     <div class="container">
         <main class="canvas-section">
             <canvas id="visualizer" style="display: none;"></canvas>
@@ -68,7 +94,7 @@
 
                 <!-- Samples per Beat -->
                 <div class="control-row">
-                    <label for="samplesPerBeat">Samples per Beat:</label>
+                    <label for="samplesPerBeat">Resolution:</label>
                     <select id="samplesPerBeat">
                         <option value="64">64</option>
                         <option value="128">128</option>
