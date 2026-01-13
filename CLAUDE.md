@@ -213,22 +213,21 @@ Color interpretation in RGB mode:
 - **Black**: Silence or very low energy
 
 ### 7. Canvas Auto-Sizing
-Canvas dimensions are automatically calculated to use the minimal rectangular size that can contain all windows on the Z-order curve:
+Canvas dimensions are automatically calculated to use the exact minimal rectangular size needed to contain all windows on the Z-order curve. The algorithm iterates through all window indices, maps them to Z-order coordinates, and finds the maximum x and y values:
 
 ```javascript
-const totalBits = Math.ceil(Math.log2(totalWindows));
-const xBits = Math.ceil(totalBits / 2);
-const yBits = Math.floor(totalBits / 2);
-const canvasWidth = Math.pow(2, xBits);
-const canvasHeight = Math.pow(2, yBits);
+let maxX = 0;
+let maxY = 0;
+for (let i = 0; i < totalWindows; i++) {
+    const { x, y } = getZOrderCoordinates(i, 0);
+    if (x > maxX) maxX = x;
+    if (y > maxY) maxY = y;
+}
+const canvasWidth = maxX + 1;
+const canvasHeight = maxY + 1;
 ```
 
-This calculation distributes bits between width and height, with the extra bit going to width. Examples:
-- 8 windows → 4×2 canvas (not 4×4)
-- 32 windows → 8×4 canvas (not 8×8)
-- 16 windows → 4×4 canvas (square when power-of-4)
-
-This ensures efficient Z-order curve mapping while minimizing unused pixels.
+This ensures the canvas is sized precisely to fit all windows without wasting any pixels, regardless of whether the window count is a power of 2.
 
 ### 8. Audio Playback and Synchronization
 The application includes synchronized audio playback with real-time visual tracking using an overlay canvas architecture.
@@ -515,5 +514,5 @@ Depends on browser, typically:
 ---
 
 **Last Updated**: 2026-01-12
-**Version**: 3.8 (Moved Offset controls to playback section - appears in two-column layout with playback controls after processing)
+**Version**: 3.9 (Fixed canvas dimension calculation to use exact Z-order curve bounds instead of bit-based approximation)
 **Author**: Built with Claude Code

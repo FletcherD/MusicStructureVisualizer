@@ -656,12 +656,16 @@ async function processAudio(): Promise<void> {
     const audioLength = vizMode === 'rgb' ? filteredBands!.low.length : audioData!.length;
     const totalWindows = Math.floor(audioLength / windowIntervalSamples);
 
-    // Calculate canvas dimensions using optimal Z-order curve sizing
-    const totalBits = Math.ceil(Math.log2(totalWindows));
-    const xBits = Math.ceil(totalBits / 2);
-    const yBits = Math.floor(totalBits / 2);
-    const canvasWidth = Math.pow(2, xBits);
-    const canvasHeight = Math.pow(2, yBits);
+    // Calculate canvas dimensions by finding actual max x and y from Z-order curve
+    let maxX = 0;
+    let maxY = 0;
+    for (let i = 0; i < totalWindows; i++) {
+        const { x, y } = getZOrderCoordinates(i, 0);
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+    }
+    const canvasWidth = maxX + 1;
+    const canvasHeight = maxY + 1;
 
     // Update info badges
     const badges = calculatedInfo.querySelectorAll('.info-badge');
