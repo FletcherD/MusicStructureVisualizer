@@ -256,17 +256,7 @@ export function setupOverlayCanvas(canvas: HTMLCanvasElement, markerOverlay: HTM
     // Show marker overlay canvas
     markerOverlay.style.display = 'block';
 
-    // Position overlay exactly over main canvas
+    // Match intrinsic canvas dimensions (not display size)
     markerOverlay.width = canvas.width;
     markerOverlay.height = canvas.height;
-    markerOverlay.style.width = canvas.style.width;
-    markerOverlay.style.height = canvas.style.height;
-
-    // Calculate canvas position within parent container
-    const canvasRect = canvas.getBoundingClientRect();
-    const containerRect = canvas.parentElement?.getBoundingClientRect();
-    if (containerRect) {
-        markerOverlay.style.left = `${canvasRect.left - containerRect.left}px`;
-        markerOverlay.style.top = `${canvasRect.top - containerRect.top}px`;
-    }
 }

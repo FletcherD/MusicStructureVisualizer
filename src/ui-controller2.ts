@@ -671,18 +671,6 @@ async function processAudio(): Promise<void> {
     // Setup canvas
     canvas.width = canvasWidth;
     canvas.height = canvasHeight;
-    const maxDisplaySize = 800;
-    const aspectRatio = canvasWidth / canvasHeight;
-    let displayWidth, displayHeight;
-    if (aspectRatio >= 1) {
-        displayWidth = Math.min(maxDisplaySize, canvasWidth);
-        displayHeight = displayWidth / aspectRatio;
-    } else {
-        displayHeight = Math.min(maxDisplaySize, canvasHeight);
-        displayWidth = displayHeight * aspectRatio;
-    }
-    canvas.style.width = `${displayWidth}px`;
-    canvas.style.height = `${displayHeight}px`;
 
     // Clear canvas
     ctx.fillStyle = '#000000';
