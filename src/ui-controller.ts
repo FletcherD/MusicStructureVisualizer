@@ -230,6 +230,9 @@ async function handleDetectBpmClick(): Promise<void> {
             detectBpmButton.textContent = 'Detect BPM';
             detectBpmButton.disabled = false;
         }, 2000);
+
+        // Automatically start processing
+        await processAudio();
     } catch (error) {
         console.error('Error detecting BPM:', error);
         alert('Error detecting BPM. Please try manually entering the BPM.');
